@@ -536,6 +536,8 @@
   cursor: pointer;
   transition: all 0.2s;
   min-width: 140px;
+  white-space: nowrap;
+  overflow: visible;
 }
 
 .noted-modal-btn-primary {

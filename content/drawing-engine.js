@@ -890,6 +890,10 @@ class DrawModeController {
     };
 
     console.log('Noted: Saving drawing annotation', annotation.id);
+
+    // Skip storage reload to prevent canvas/SVG desync
+    this.manager.skipNextStorageReload = true;
+
     await this.manager.addAnnotation(annotation, false);  // No auto-focus for drawings
     console.log('Noted: Drawing annotation saved and rendered', annotation.id);
 
