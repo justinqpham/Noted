@@ -14,15 +14,21 @@ class AnchorEngine {
     // Find the element at the annotation position
     const element = document.elementFromPoint(x, y);
 
+    // Store scroll position for page-relative coordinates
+    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
     if (!element || element === document.body || element === document.documentElement) {
-      // No specific anchor element - use viewport positioning
+      // No specific anchor element - use page positioning (viewport + scroll)
       return {
-        strategy: 'viewport',
+        strategy: 'page',
         xpath: null,
         cssSelector: null,
         textContent: null,
-        offsetX: x,
-        offsetY: y,
+        pageX: x + scrollX,
+        pageY: y + scrollY,
+        scrollX: scrollX,
+        scrollY: scrollY,
         viewportWidth: viewportWidth,
         viewportHeight: viewportHeight
       };
@@ -49,8 +55,10 @@ class AnchorEngine {
       textContent: textContent,
       offsetX: offsetX,
       offsetY: offsetY,
-      elementOffsetX: rect.left,
-      elementOffsetY: rect.top,
+      elementPageX: rect.left + scrollX,
+      elementPageY: rect.top + scrollY,
+      scrollX: scrollX,
+      scrollY: scrollY,
       viewportWidth: viewportWidth,
       viewportHeight: viewportHeight
     };
@@ -156,16 +164,28 @@ class AnchorEngine {
   static resolveAnchor(anchor) {
     if (!anchor) return null;
 
-    // Viewport strategy - use proportional scaling
-    if (anchor.strategy === 'viewport') {
-      const scaleX = window.innerWidth / anchor.viewportWidth;
-      const scaleY = window.innerHeight / anchor.viewportHeight;
+    const currentScrollX = window.pageXOffset || document.documentElement.scrollLeft;
+    const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
 
-      return {
-        element: null,
-        x: anchor.offsetX * scaleX,
-        y: anchor.offsetY * scaleY
-      };
+    // Page strategy - use page coordinates (handle old "viewport" strategy too)
+    if (anchor.strategy === 'page' || anchor.strategy === 'viewport') {
+      if (anchor.pageX !== undefined && anchor.pageY !== undefined) {
+        // New page-relative coordinates
+        return {
+          element: null,
+          x: anchor.pageX - currentScrollX,
+          y: anchor.pageY - currentScrollY
+        };
+      } else {
+        // Old viewport strategy - proportional scaling
+        const scaleX = window.innerWidth / anchor.viewportWidth;
+        const scaleY = window.innerHeight / anchor.viewportHeight;
+        return {
+          element: null,
+          x: anchor.offsetX * scaleX,
+          y: anchor.offsetY * scaleY
+        };
+      }
     }
 
     // Try XPath first
@@ -207,15 +227,12 @@ class AnchorEngine {
       }
     }
 
-    // Last resort: proportional scaling
-    if (anchor.elementOffsetX !== undefined && anchor.elementOffsetY !== undefined) {
-      const scaleX = window.innerWidth / anchor.viewportWidth;
-      const scaleY = window.innerHeight / anchor.viewportHeight;
-
+    // Last resort: use stored page coordinates with current scroll
+    if (anchor.elementPageX !== undefined && anchor.elementPageY !== undefined) {
       return {
         element: null,
-        x: (anchor.elementOffsetX + anchor.offsetX) * scaleX,
-        y: (anchor.elementOffsetY + anchor.offsetY) * scaleY,
+        x: anchor.elementPageX - currentScrollX + anchor.offsetX,
+        y: anchor.elementPageY - currentScrollY + anchor.offsetY,
         warning: 'approximate'
       };
     }
@@ -371,11 +388,10 @@ class AnchorEngine {
       return true;
     }
 
-    // Heuristic detection
-    const hasInfiniteScrollLib = !!document.querySelector('[data-infinite-scroll], .infinite-scroll');
-    const isVeryTall = document.documentElement.scrollHeight > window.innerHeight * 3;
-    const hasPagination = !!document.querySelector('[class*="pagination"], [id*="pagination"]');
+    // Heuristic detection - only check for explicit infinite scroll indicators
+    const hasInfiniteScrollLib = !!document.querySelector('[data-infinite-scroll], .infinite-scroll, [infinite-scroll]');
 
-    return hasInfiniteScrollLib || (isVeryTall && !hasPagination);
+    // Don't rely on page height alone - too many false positives
+    return hasInfiniteScrollLib;
   }
 }

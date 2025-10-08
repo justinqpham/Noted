@@ -165,17 +165,24 @@ class AnnotationManager {
       urlAnnotations.forEach(annotation => {
         // Check if annotation has anchor data (Phase 4)
         if (annotation.anchor) {
-          // Resolve anchor to get updated position
-          const resolved = AnchorEngine.resolveAnchor(annotation.anchor);
+          // Only resolve anchor if annotation was created more than 1 second ago
+          // (prevents shifting newly created annotations in the same session)
+          const timeSinceCreation = Date.now() - (annotation.createdAt || 0);
+          const shouldResolveAnchor = timeSinceCreation > 1000;
 
-          if (resolved) {
-            // Update position based on anchor resolution
-            annotation.position.x = resolved.x;
-            annotation.position.y = resolved.y;
+          if (shouldResolveAnchor) {
+            // Resolve anchor to get updated position
+            const resolved = AnchorEngine.resolveAnchor(annotation.anchor);
 
-            // Mark if position was approximate
-            if (resolved.warning === 'approximate') {
-              annotation._positionWarning = true;
+            if (resolved) {
+              // Update position based on anchor resolution
+              annotation.position.x = resolved.x;
+              annotation.position.y = resolved.y;
+
+              // Mark if position was approximate
+              if (resolved.warning === 'approximate') {
+                annotation._positionWarning = true;
+              }
             }
           }
 
