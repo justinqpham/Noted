@@ -28,6 +28,7 @@ function initialize() {
 
   // Initialize draw mode controller
   drawModeController = new DrawModeController(annotationManager);
+  annotationManager.drawMode = drawModeController;
 
   // Listen for messages from background script
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

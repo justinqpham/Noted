@@ -402,7 +402,7 @@ Two separate issues compounded:
 - [x] Undo last stroke with Ctrl+Z
 - [x] Delete button appears on hover (when NOT in draw mode)
 - [x] Delete button removes stroke
-- [ ] ❌ Alt+drag moves stroke without leaving copy (BROKEN - known issue)
+- [x] Alt+drag moves stroke without leaving copy
 - [x] Cursor changes to crosshair in draw mode
 - [x] Cursor changes to grab when Alt is held
 - [x] Escape exits mode and finalizes strokes
