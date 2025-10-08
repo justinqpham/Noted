@@ -627,8 +627,7 @@ class DrawModeController {
     document.body.appendChild(this.canvas);
 
     // Show UI
-    this.showColorPalette();
-    this.showBrushSelector();
+    this.showControlPanel();
     this.showInstruction();
 
     // Attach event listeners
@@ -813,10 +812,33 @@ class DrawModeController {
   }
 
   /**
-   * Show color palette
+   * Show combined control panel with color palette and brush size selector
    */
-  showColorPalette() {
+  showControlPanel() {
+    // Create panel container
+    this.controlPanel = document.createElement('div');
+    this.controlPanel.className = 'noted-draw-control-panel';
+
+    // Create drag handle at top
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'noted-draw-panel-handle';
+    dragHandle.innerHTML = '<div class="noted-draw-handle-lines">≡</div>';
+    this.controlPanel.appendChild(dragHandle);
+
+    // Add colors section
+    const colorsSection = document.createElement('div');
+    colorsSection.className = 'noted-draw-section';
+
+    const colorLabel = document.createElement('div');
+    colorLabel.className = 'noted-draw-ui-label';
+    colorLabel.textContent = 'Color:';
+    colorsSection.appendChild(colorLabel);
+
+    const colorContainer = document.createElement('div');
+    colorContainer.className = 'noted-draw-color-grid';
+
     const colors = [
+      { name: 'Red', hex: '#FFB3B3' },
       { name: 'Yellow', hex: '#FFF4CC' },
       { name: 'Orange', hex: '#FFCC99' },
       { name: 'Pink', hex: '#FFB3D9' },
@@ -824,22 +846,22 @@ class DrawModeController {
       { name: 'Blue', hex: '#99CCFF' },
       { name: 'Purple', hex: '#D9B3E6' },
       { name: 'Gray', hex: '#CCCCCC' },
+      { name: 'Black', hex: '#000000' },
+      { name: 'Brown', hex: '#D2B48C' },
+      { name: 'Turquoise', hex: '#AFEEEE' },
       { name: 'White', hex: '#FFFFFF' }
     ];
-
-    this.colorPalette = document.createElement('div');
-    this.colorPalette.className = 'noted-draw-color-palette';
-    this.colorPalette.innerHTML = '<div class="noted-draw-ui-label">Color:</div>';
-
-    const colorContainer = document.createElement('div');
-    colorContainer.style.display = 'flex';
-    colorContainer.style.gap = '6px';
 
     colors.forEach(color => {
       const colorOption = document.createElement('div');
       colorOption.className = 'noted-draw-color-option';
       colorOption.style.background = color.hex;
       colorOption.title = color.name;
+
+      // Add border for white color
+      if (color.hex === '#FFFFFF') {
+        colorOption.style.border = '2px solid #E0E0E0';
+      }
 
       if (color.hex === this.drawingEngine.strokeColor) {
         colorOption.classList.add('selected');
@@ -856,36 +878,52 @@ class DrawModeController {
       colorContainer.appendChild(colorOption);
     });
 
-    this.colorPalette.appendChild(colorContainer);
-    document.body.appendChild(this.colorPalette);
-  }
+    colorsSection.appendChild(colorContainer);
+    this.controlPanel.appendChild(colorsSection);
 
-  /**
-   * Show brush size selector
-   */
-  showBrushSelector() {
-    const sizes = [2, 4, 6, 8, 12];
+    // Add divider
+    const divider = document.createElement('div');
+    divider.className = 'noted-draw-divider';
+    this.controlPanel.appendChild(divider);
 
-    this.brushSelector = document.createElement('div');
-    this.brushSelector.className = 'noted-draw-brush-selector';
-    this.brushSelector.innerHTML = '<div class="noted-draw-ui-label">Brush Size:</div>';
+    // Add brush size section
+    const brushSection = document.createElement('div');
+    brushSection.className = 'noted-draw-section';
+
+    const brushLabel = document.createElement('div');
+    brushLabel.className = 'noted-draw-ui-label';
+    brushLabel.textContent = 'Brush Size:';
+    brushSection.appendChild(brushLabel);
 
     const sizeContainer = document.createElement('div');
-    sizeContainer.style.display = 'flex';
-    sizeContainer.style.gap = '6px';
+    sizeContainer.className = 'noted-draw-size-grid';
+
+    const sizes = [
+      { value: 2, displaySize: 6 },
+      { value: 4, displaySize: 10 },
+      { value: 6, displaySize: 14 },
+      { value: 8, displaySize: 18 },
+      { value: 12, displaySize: 24 }
+    ];
 
     sizes.forEach(size => {
       const sizeOption = document.createElement('div');
       sizeOption.className = 'noted-draw-size-option';
-      sizeOption.textContent = size;
-      sizeOption.title = `${size}px`;
+      sizeOption.title = `${size.value}px`;
 
-      if (size === this.drawingEngine.strokeWidth) {
+      // Create a solid black circle inside
+      const circle = document.createElement('div');
+      circle.className = 'noted-draw-size-circle';
+      circle.style.width = `${size.displaySize}px`;
+      circle.style.height = `${size.displaySize}px`;
+      sizeOption.appendChild(circle);
+
+      if (size.value === this.drawingEngine.strokeWidth) {
         sizeOption.classList.add('selected');
       }
 
       sizeOption.addEventListener('click', () => {
-        this.drawingEngine.strokeWidth = size;
+        this.drawingEngine.strokeWidth = size.value;
         document.querySelectorAll('.noted-draw-size-option').forEach(el => {
           el.classList.remove('selected');
         });
@@ -895,8 +933,57 @@ class DrawModeController {
       sizeContainer.appendChild(sizeOption);
     });
 
-    this.brushSelector.appendChild(sizeContainer);
-    document.body.appendChild(this.brushSelector);
+    brushSection.appendChild(sizeContainer);
+    this.controlPanel.appendChild(brushSection);
+
+    // Add to document
+    document.body.appendChild(this.controlPanel);
+
+    // Make panel draggable
+    this.makePanelDraggable(dragHandle);
+  }
+
+  /**
+   * Make control panel draggable by the handle
+   */
+  makePanelDraggable(handle) {
+    let isDragging = false;
+    let startX, startY, startLeft, startTop;
+
+    handle.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+
+      const rect = this.controlPanel.getBoundingClientRect();
+      startLeft = rect.left;
+      startTop = rect.top;
+
+      handle.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+
+      this.controlPanel.style.left = `${startLeft + deltaX}px`;
+      this.controlPanel.style.top = `${startTop + deltaY}px`;
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        handle.style.cursor = 'grab';
+      }
+    });
+
+    // Change cursor on hover
+    handle.addEventListener('mouseenter', () => {
+      handle.style.cursor = 'grab';
+    });
   }
 
   /**
@@ -913,16 +1000,13 @@ class DrawModeController {
    * Remove all UI elements
    */
   removeUI() {
-    if (this.colorPalette) {
-      this.colorPalette.remove();
-      this.colorPalette = null;
+    // Remove control panel
+    if (this.controlPanel) {
+      this.controlPanel.remove();
+      this.controlPanel = null;
     }
 
-    if (this.brushSelector) {
-      this.brushSelector.remove();
-      this.brushSelector = null;
-    }
-
+    // Remove instruction banner
     const instruction = document.querySelector('.noted-instruction');
     if (instruction) {
       instruction.remove();

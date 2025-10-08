@@ -261,23 +261,62 @@
   transform: scale(0.9);
 }
 
-/* Draw Mode UI */
-.noted-draw-color-palette,
-.noted-draw-brush-selector {
+/* Draw Mode UI - Combined Control Panel */
+.noted-draw-control-panel {
   position: fixed;
   top: 80px;
   left: 20px;
   background: rgba(255, 255, 255, 0.98);
-  padding: 12px;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   z-index: 2147483649;
   pointer-events: auto;
   animation: slideInLeft 0.3s ease;
+  min-width: 220px;
+  backdrop-filter: blur(10px);
+  overflow: hidden;
 }
 
-.noted-draw-brush-selector {
-  top: 160px;
+/* Drag handle at top of panel */
+.noted-draw-panel-handle {
+  background: linear-gradient(to bottom, #f8f8f8, #ececec);
+  padding: 8px;
+  text-align: center;
+  border-bottom: 1px solid #e0e0e0;
+  user-select: none;
+}
+
+.noted-draw-handle-lines {
+  font-size: 16px;
+  font-weight: bold;
+  color: #999;
+  letter-spacing: 2px;
+}
+
+/* Panel sections */
+.noted-draw-section {
+  padding: 12px;
+}
+
+/* Divider between sections */
+.noted-draw-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, #e0e0e0 20%, #e0e0e0 80%, transparent);
+  margin: 0 12px;
+}
+
+/* Color grid layout */
+.noted-draw-color-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+/* Brush size grid layout */
+.noted-draw-size-grid {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
 }
 
 @keyframes slideInLeft {
@@ -325,28 +364,35 @@
 /* Draw Size Options */
 .noted-draw-size-option {
   width: 40px;
-  height: 32px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   border: 2px solid transparent;
   background: #F5F5F7;
-  font-size: 13px;
-  font-weight: 600;
-  color: #1D1D1F;
   transition: all 0.2s;
 }
 
 .noted-draw-size-option:hover {
   background: #E8E8ED;
-  transform: translateY(-2px);
+  transform: scale(1.1);
+}
+
+/* Solid black circles for brush sizes */
+.noted-draw-size-circle {
+  background: #000000;
+  border-radius: 50%;
+  transition: all 0.2s;
 }
 
 .noted-draw-size-option.selected {
   background: #007AFF;
-  color: white;
   border-color: #007AFF;
   box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+}
+
+.noted-draw-size-option.selected .noted-draw-size-circle {
+  background: #FFFFFF;
 }

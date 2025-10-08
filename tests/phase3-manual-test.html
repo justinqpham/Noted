@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phase 3 Manual Test - Drawing Controls</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #1D1D1F;
+    }
+    .test-checklist {
+      background: #F5F5F7;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+    }
+    .test-item {
+      padding: 10px 0;
+      border-bottom: 1px solid #E0E0E0;
+    }
+    .test-item:last-child {
+      border-bottom: none;
+    }
+    input[type="checkbox"] {
+      margin-right: 10px;
+    }
+    .instructions {
+      background: #E8F4FD;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+      border-left: 4px solid #007AFF;
+    }
+    code {
+      background: #E0E0E0;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Menlo', monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>Phase 3: Drawing System - Manual Testing</h1>
+
+  <div class="instructions">
+    <h3>🎨 How to Test</h3>
+    <ol>
+      <li>Press <code>Ctrl+Shift+D</code> to activate draw mode</li>
+      <li>The control panel should appear in the top-left corner</li>
+      <li>Test all features in the checklist below</li>
+      <li>Press <code>ESC</code> to exit draw mode</li>
+    </ol>
+  </div>
+
+  <div class="test-checklist">
+    <h3>✓ Test Checklist</h3>
+    
+    <div class="test-item">
+      <input type="checkbox" id="test1">
+      <label for="test1"><strong>Control Panel Appearance:</strong> Panel appears with drag handle at top showing "≡"</label>
+    </div>
+
+    <div class="test-item">
+      <input type="checkbox" id="test2">
+      <label for="test2"><strong>Color Grid:</strong> 12 colors displayed in 6x2 grid (Red, Yellow, Orange, Pink, Green, Blue, Purple, Gray, Black, Brown, Turquoise, White)</label>
+    </div>
+
+    <div class="test-item">
+      <input type="checkbox" id="test3">
+      <label for="test3"><strong>Divider:</strong> Horizontal divider between color and brush size sections</label>
+    </div>
+
+    <div class="test-item">
+      <input type="checkbox" id="test4">
+      <label for="test4"><strong>Brush Size Display:</strong> 5 solid black circles displayed (small to large)</label>
+    </div>
+
+    <div class="test-item">
+      <input type="checkbox" id="test5">
+      <label for="test5"><strong>Default Selection:</strong> Yellow color and 4px brush size (second circle) are selected by default</label>
+    </div>
+
+    <div class="test-item">
+      <input type="checkbox" id="test6">
+      <label for="test6"><strong>Color Selection:</strong> Clicking a color changes selection (blue border + ring effect)</label>
+    </div>
+
+    <div class="test-item">
+      <input type="checkbox" id="test7">
+      <label for="test7"><strong>Brush Size Selection:</strong> Clicking a size changes selection (blue background, white circle)</label>
+    </div>
+
+    <div class="test-item">
+      <input type="checkbox" id="test8">
+      <label for="test8"><strong>Draw with New Settings:</strong> Drawing uses selected color and brush size</label>
+    </div>
+
+    <div class="test-item">
+      <input type="checkbox" id="test9">
+      <label for="test9"><strong>Panel Draggable:</strong> Hovering over drag handle shows grab cursor</label>
+    </div>
+
+    <div class="test-item">
+      <input type="checkbox" id="test10">
+      <label for="test10"><strong>Drag Functionality:</strong> Clicking and dragging the handle moves entire panel</label>
+    </div>
+
+    <div class="test-item">
+      <input type="checkbox" id="test11">
+      <label for="test11"><strong>Cursor Change:</strong> Cursor shows "grabbing" while dragging handle</label>
+    </div>
+
+    <div class="test-item">
+      <input type="checkbox" id="test12">
+      <label for="test12"><strong>Panel Positioning:</strong> Panel can be moved anywhere on the page and stays there</label>
+    </div>
+
+    <div class="test-item">
+      <input type="checkbox" id="test13">
+      <label for="test13"><strong>Undo Works:</strong> <code>Ctrl+Z</code> undoes the last stroke</label>
+    </div>
+
+    <div class="test-item">
+      <input type="checkbox" id="test14">
+      <label for="test14"><strong>Exit Clean:</strong> Press <code>ESC</code> removes panel and canvas cleanly</label>
+    </div>
+
+    <div class="test-item">
+      <input type="checkbox" id="test15">
+      <label for="test15"><strong>Multiple Sessions:</strong> Activate draw mode again - settings persist (last used color/size)</label>
+    </div>
+  </div>
+
+  <h2>Test Content</h2>
+  <p>
+    Draw on this page to test the drawing system! Try different colors and brush sizes.
+    Make sure the strokes render smoothly and the Catmull-Rom interpolation creates nice curves.
+  </p>
+
+  <p>
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut 
+    labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco 
+    laboris nisi ut aliquip ex ea commodo consequat.
+  </p>
+
+  <div style="height: 300px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+              border-radius: 12px; display: flex; align-items: center; justify-content: center;
+              color: white; font-size: 24px; font-weight: bold; margin: 30px 0;">
+    Draw on this colorful box!
+  </div>
+
+  <p>
+    Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla 
+    pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt 
+    mollit anim id est laborum.
+  </p>
+</body>
+</html>
