@@ -25,7 +25,7 @@
 - Persistent storage per URL
 - Cross-session annotation loading
 
-#### Phase 3: Drawing System (Partial) ✅
+#### Phase 3: Drawing System (95% Complete) ✅
 - Drawing mode activation with Ctrl+Shift+D
 - Canvas overlay for freehand drawing
 - Catmull-Rom spline interpolation for smooth strokes
@@ -35,6 +35,11 @@
 - Alt+drag to move strokes during draw mode
 - Global cursor changes (crosshair in draw mode, grab when Alt held)
 - Clear All Annotations with double-click confirmation
+- **NEW**: Combined color + brush size control panel
+- **NEW**: 12-color palette in 6x2 grid layout
+- **NEW**: 5 brush sizes (2px, 4px, 6px, 8px, 12px) displayed as solid black circles
+- **NEW**: Draggable control panel with grab handle
+- **NEW**: Visual selection feedback (blue borders/backgrounds)
 
 #### Phase 4: Dashboard (Partial) ✅
 - Popup dashboard UI
@@ -207,6 +212,8 @@ The issue stems from a race condition between canvas history updates and storage
 - Canvas overlay setup
 - Keyboard event handlers (Alt, Ctrl+Z, ESC)
 - Global cursor management
+- Combined control panel (color + brush size)
+- Draggable control panel with grab handle
 
 ---
 
@@ -223,6 +230,8 @@ The issue stems from a race condition between canvas history updates and storage
 ### Drawing Mode
 - **Ctrl+Shift+D** - Activate draw mode
 - **Click + Drag** - Draw freehand stroke
+- **Control Panel** - Select color (12 colors) and brush size (5 sizes)
+- **Drag Panel** - Click and drag the "≡" handle to move control panel
 - **Alt + Drag** - Move existing stroke (during draw mode)
 - **Ctrl+Z** - Undo last stroke
 - **Hover + Delete button** - Remove stroke (only when NOT in draw mode)
@@ -274,6 +283,30 @@ The issue stems from a race condition between canvas history updates and storage
 **Solution**: Added keydown/keyup listeners on document to change canvas cursor globally when Alt is pressed/released.
 
 **Code**: [drawing-engine.js:713-758](content/drawing-engine.js)
+
+### Challenge 5: Combined Control Panel UI
+**Problem**: Need color picker and brush size selector in a single, moveable panel.
+
+**Requirements**:
+- Remove Shift-to-show palette behavior from original spec
+- Combine color and brush size into one panel
+- Make panel draggable by top handle
+- Display brush sizes as solid black circles (not numbers)
+
+**Solution**: Created unified control panel with draggable handle.
+
+**Implementation Details**:
+- **Panel Structure**: Drag handle (≡) at top, color section, divider, brush size section
+- **Colors**: 12 colors in 6x2 grid (Red, Yellow, Orange, Pink, Green, Blue, Purple, Gray, Black, Brown, Turquoise, White)
+- **Brush Sizes**: 5 sizes (2px, 4px, 6px, 8px, 12px) displayed as solid black circles (6px, 10px, 14px, 18px, 24px visual size)
+- **Selection Feedback**: Colors show blue border + ring, brush sizes show blue background with white circle
+- **Drag Functionality**: Grab/grabbing cursor, smooth drag with mousedown/mousemove/mouseup
+- **Styling**: Apple-style design with backdrop blur, subtle shadows, smooth animations
+
+**Code**:
+- Panel creation: [drawing-engine.js:817-944](content/drawing-engine.js)
+- Drag functionality: [drawing-engine.js:949-987](content/drawing-engine.js)
+- CSS styling: [styles.css:265-398](content/styles.css)
 
 ---
 
@@ -367,16 +400,25 @@ The issue stems from a race condition between canvas history updates and storage
 - [ ] Escape exits mode without saving
 
 **Drawing Annotations**:
-- [ ] Create drawing with Ctrl+Shift+D
-- [ ] Smooth stroke rendering
-- [ ] Undo last stroke with Ctrl+Z
-- [ ] Delete button appears on hover (when NOT in draw mode)
-- [ ] Delete button removes stroke
-- [ ] ❌ Alt+drag moves stroke without leaving copy (BROKEN)
-- [ ] Cursor changes to crosshair in draw mode
-- [ ] Cursor changes to grab when Alt is held
-- [ ] Escape exits mode and finalizes strokes
-- [ ] Persist across page refresh
+- [x] Create drawing with Ctrl+Shift+D
+- [x] Smooth stroke rendering
+- [x] Control panel appears with colors and brush sizes
+- [x] 12 colors displayed in 6x2 grid
+- [x] 5 brush sizes displayed as solid black circles
+- [x] Click to select color (blue border feedback)
+- [x] Click to select brush size (blue background feedback)
+- [x] Panel drag handle shows grab cursor on hover
+- [x] Drag panel by handle to new position
+- [x] Panel stays at new position during drawing
+- [x] Draw with selected color and brush size
+- [x] Undo last stroke with Ctrl+Z
+- [x] Delete button appears on hover (when NOT in draw mode)
+- [x] Delete button removes stroke
+- [ ] ❌ Alt+drag moves stroke without leaving copy (BROKEN - known issue)
+- [x] Cursor changes to crosshair in draw mode
+- [x] Cursor changes to grab when Alt is held
+- [x] Escape exits mode and finalizes strokes
+- [x] Persist across page refresh
 
 **Dashboard**:
 - [ ] Click extension icon opens popup

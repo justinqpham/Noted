@@ -19,6 +19,9 @@
 
 ### ✏️ Freehand Drawing
 - **Drawing mode** with `Ctrl+Shift+D`
+- **12-color palette** with easy selection
+- **5 brush sizes** (2px to 12px) displayed as visual circles
+- **Draggable control panel** - move it anywhere on the page
 - Smooth, natural brush strokes using Catmull-Rom interpolation
 - **Alt+drag** to reposition strokes while drawing
 - **Ctrl+Z** to undo mistakes
@@ -73,11 +76,15 @@
 ### Drawing Annotations
 
 1. Press `Ctrl+Shift+D` to activate drawing mode
-2. Click and drag to draw freehand strokes
-3. Hold `Alt` while dragging to move existing strokes
-4. Press `Ctrl+Z` to undo the last stroke
-5. Hover over strokes (outside draw mode) to delete
-6. Press `ESC` to finalize and exit drawing mode
+2. A control panel appears with:
+   - **Colors**: 12 colors in a grid - click to select
+   - **Brush Sizes**: 5 sizes shown as black circles - click to select
+3. Click and drag anywhere on the panel's handle (≡) to move it
+4. Click and drag to draw freehand strokes with selected color/size
+5. Hold `Alt` while dragging to move existing strokes
+6. Press `Ctrl+Z` to undo the last stroke
+7. Hover over strokes (outside draw mode) to delete
+8. Press `ESC` to finalize and exit drawing mode
 
 ### Managing Annotations
 
@@ -175,6 +182,9 @@ open tests/drawing-engine.test.html
 
 # Storage helper tests
 open tests/storage-helper.test.html
+
+# Phase 3 control panel manual test
+open tests/phase3-manual-test.html
 ```
 
 ## Known Issues
@@ -185,11 +195,12 @@ open tests/storage-helper.test.html
 
 - [x] Text annotation system
 - [x] Freehand drawing system
+- [x] **Stroke color picker (12 colors)**
+- [x] **Stroke width controls (5 sizes)**
+- [x] **Draggable control panel**
 - [x] Persistent storage
 - [x] Dashboard UI
 - [ ] Fix Alt+drag canvas copy bug
-- [ ] Stroke color picker
-- [ ] Stroke width controls
 - [ ] Eraser tool
 - [ ] Export/import annotations
 - [ ] Cloud sync
