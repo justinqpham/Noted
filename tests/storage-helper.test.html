@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Storage Helper Unit Tests - Noted</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+      padding: 24px;
+      background: #F5F5F7;
+      color: #1D1D1F;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+
+    .test-section {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .test-case {
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .test-case.pass {
+      background: #E8F5E9;
+      border-left: 4px solid #4CAF50;
+    }
+
+    .test-case.fail {
+      background: #FFEBEE;
+      border-left: 4px solid #F44336;
+    }
+
+    .test-case.pending {
+      background: #FFF3E0;
+      border-left: 4px solid #FF9800;
+    }
+
+    .icon {
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .test-name {
+      flex: 1;
+      font-weight: 500;
+    }
+
+    .test-result {
+      font-size: 12px;
+      color: #6E6E73;
+    }
+
+    .summary {
+      display: flex;
+      gap: 24px;
+      margin-top: 24px;
+      padding: 16px;
+      background: #F5F5F7;
+      border-radius: 8px;
+    }
+
+    .summary-item {
+      flex: 1;
+      text-align: center;
+    }
+
+    .summary-value {
+      font-size: 32px;
+      font-weight: 700;
+    }
+
+    .summary-label {
+      font-size: 12px;
+      color: #6E6E73;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    button {
+      background: #007AFF;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: #0051D5;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    }
+
+    .error-detail {
+      margin-top: 8px;
+      padding: 8px;
+      background: #FFF;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #F44336;
+    }
+  </style>
+</head>
+<body>
+  <h1>Storage Helper Unit Tests</h1>
+  <p><strong>Note:</strong> Load this extension in Chrome and open this file via the extension's context to test.</p>
+
+  <button onclick="runAllTests()">Run All Tests</button>
+
+  <div id="results"></div>
+
+  <div class="summary" id="summary" style="display: none;">
+    <div class="summary-item">
+      <div class="summary-value" id="passed-count">0</div>
+      <div class="summary-label">Passed</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-value" id="failed-count">0</div>
+      <div class="summary-label">Failed</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-value" id="total-count">0</div>
+      <div class="summary-label">Total</div>
+    </div>
+  </div>
+
+  <script src="../utils/storage-helper.js"></script>
+  <script>
+    // Test Suite
+    const testResults = [];
+
+    function assert(condition, message) {
+      if (!condition) {
+        throw new Error(message || 'Assertion failed');
+      }
+    }
+
+    function assertEquals(actual, expected, message) {
+      if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+        throw new Error(`${message || 'Equality assertion failed'}\nExpected: ${JSON.stringify(expected)}\nActual: ${JSON.stringify(actual)}`);
+      }
+    }
+
+    async function runTest(name, testFn) {
+      const result = {
+        name,
+        status: 'pending',
+        error: null
+      };
+
+      try {
+        await testFn();
+        result.status = 'pass';
+      } catch (error) {
+        result.status = 'fail';
+        result.error = error.message;
+      }
+
+      testResults.push(result);
+      renderResults();
+    }
+
+    function renderResults() {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '';
+
+      const section = document.createElement('div');
+      section.className = 'test-section';
+      section.innerHTML = '<h2>Test Results</h2>';
+
+      testResults.forEach(result => {
+        const testCase = document.createElement('div');
+        testCase.className = `test-case ${result.status}`;
+
+        const icon = result.status === 'pass' ? '✓' : result.status === 'fail' ? '✗' : '○';
+        testCase.innerHTML = `
+          <span class="icon">${icon}</span>
+          <span class="test-name">${result.name}</span>
+          <span class="test-result">${result.status.toUpperCase()}</span>
+        `;
+
+        if (result.error) {
+          const errorDetail = document.createElement('div');
+          errorDetail.className = 'error-detail';
+          errorDetail.textContent = result.error;
+          testCase.appendChild(errorDetail);
+        }
+
+        section.appendChild(testCase);
+      });
+
+      resultsDiv.appendChild(section);
+
+      // Update summary
+      const passed = testResults.filter(r => r.status === 'pass').length;
+      const failed = testResults.filter(r => r.status === 'fail').length;
+
+      document.getElementById('passed-count').textContent = passed;
+      document.getElementById('failed-count').textContent = failed;
+      document.getElementById('total-count').textContent = testResults.length;
+      document.getElementById('summary').style.display = 'flex';
+    }
+
+    // Test Cases
+
+    async function testPruneOldest() {
+      const annotations = [
+        { id: '1', type: 'text', createdAt: 1000 },
+        { id: '2', type: 'text', createdAt: 2000 },
+        { id: '3', type: 'text', createdAt: 3000 },
+        { id: '4', type: 'drawing', createdAt: 1500 },
+        { id: '5', type: 'drawing', createdAt: 2500 }
+      ];
+
+      const pruned = StorageHelper.pruneOldest(annotations, 2, 1);
+
+      // Should keep 2 newest text (id 2, 3) and 1 newest drawing (id 5)
+      assertEquals(pruned.length, 3, 'Should prune to 3 annotations');
+      assert(pruned.some(a => a.id === '3'), 'Should keep newest text (id 3)');
+      assert(pruned.some(a => a.id === '2'), 'Should keep second newest text (id 2)');
+      assert(pruned.some(a => a.id === '5'), 'Should keep newest drawing (id 5)');
+      assert(!pruned.some(a => a.id === '1'), 'Should remove oldest text (id 1)');
+      assert(!pruned.some(a => a.id === '4'), 'Should remove oldest drawing (id 4)');
+    }
+
+    async function testPruneLeastRecentlyUsedURLs() {
+      const annotations = {
+        'url1': [{ id: '1', createdAt: 1000, modifiedAt: 5000 }],
+        'url2': [{ id: '2', createdAt: 2000, modifiedAt: 3000 }],
+        'url3': [{ id: '3', createdAt: 3000, modifiedAt: 8000 }],
+        'url4': [{ id: '4', createdAt: 4000, modifiedAt: 6000 }]
+      };
+
+      const pruned = StorageHelper.pruneLeastRecentlyUsedURLs(annotations, 2);
+
+      // Should keep url3 (modifiedAt: 8000) and url4 (modifiedAt: 6000)
+      assertEquals(Object.keys(pruned).length, 2, 'Should keep only 2 URLs');
+      assert(pruned['url3'], 'Should keep most recently modified URL (url3)');
+      assert(pruned['url4'], 'Should keep second most recently modified URL (url4)');
+      assert(!pruned['url1'], 'Should remove url1');
+      assert(!pruned['url2'], 'Should remove url2');
+    }
+
+    async function testPruneLeastRecentlyUsedURLsWithoutModifiedAt() {
+      const annotations = {
+        'url1': [{ id: '1', createdAt: 1000 }],
+        'url2': [{ id: '2', createdAt: 3000 }],
+        'url3': [{ id: '3', createdAt: 2000 }]
+      };
+
+      const pruned = StorageHelper.pruneLeastRecentlyUsedURLs(annotations, 2);
+
+      // Should keep url2 (createdAt: 3000) and url3 (createdAt: 2000)
+      assertEquals(Object.keys(pruned).length, 2, 'Should keep only 2 URLs');
+      assert(pruned['url2'], 'Should keep most recent by createdAt');
+      assert(pruned['url3'], 'Should keep second most recent by createdAt');
+    }
+
+    async function testCalculateAnnotationSize() {
+      const annotation = {
+        id: 'test-123',
+        type: 'text',
+        content: {
+          title: 'Test',
+          text: 'This is a test annotation'
+        }
+      };
+
+      const size = StorageHelper.calculateAnnotationSize(annotation);
+      assert(size > 0, 'Size should be greater than 0');
+      assert(typeof size === 'number', 'Size should be a number');
+    }
+
+    async function testLimitsConstants() {
+      assertEquals(StorageHelper.LIMITS.MAX_TEXT_PER_URL, 100, 'Max text per URL should be 100');
+      assertEquals(StorageHelper.LIMITS.MAX_DRAWINGS_PER_URL, 50, 'Max drawings per URL should be 50');
+      assertEquals(StorageHelper.LIMITS.MAX_URLS, 50, 'Max URLs should be 50');
+      assertEquals(StorageHelper.LIMITS.MAX_STORAGE_MB, 10, 'Max storage should be 10 MB');
+    }
+
+    async function testPruneOldestEdgeCaseEmpty() {
+      const annotations = [];
+      const pruned = StorageHelper.pruneOldest(annotations, 10, 10);
+      assertEquals(pruned.length, 0, 'Empty array should return empty array');
+    }
+
+    async function testPruneOldestEdgeCaseUnderLimit() {
+      const annotations = [
+        { id: '1', type: 'text', createdAt: 1000 },
+        { id: '2', type: 'drawing', createdAt: 2000 }
+      ];
+
+      const pruned = StorageHelper.pruneOldest(annotations, 10, 10);
+      assertEquals(pruned.length, 2, 'Should keep all annotations when under limit');
+    }
+
+    async function runAllTests() {
+      testResults.length = 0; // Clear previous results
+      document.getElementById('summary').style.display = 'none';
+
+      await runTest('pruneOldest - basic functionality', testPruneOldest);
+      await runTest('pruneLeastRecentlyUsedURLs - with modifiedAt', testPruneLeastRecentlyUsedURLs);
+      await runTest('pruneLeastRecentlyUsedURLs - fallback to createdAt', testPruneLeastRecentlyUsedURLsWithoutModifiedAt);
+      await runTest('calculateAnnotationSize - returns valid size', testCalculateAnnotationSize);
+      await runTest('LIMITS constants - verify values', testLimitsConstants);
+      await runTest('pruneOldest - edge case: empty array', testPruneOldestEdgeCaseEmpty);
+      await runTest('pruneOldest - edge case: under limit', testPruneOldestEdgeCaseUnderLimit);
+
+      console.log('All tests completed!');
+    }
+
+    // Auto-run tests on page load
+    window.addEventListener('load', () => {
+      console.log('Storage Helper Test Suite loaded');
+    });
+  </script>
+</body>
+</html>

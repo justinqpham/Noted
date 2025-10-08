@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "Noted - Web Annotation Tool",
+  "version": "1.0.0",
+  "description": "Annotate any webpage with persistent text labels and drawings",
+
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting"
+  ],
+
+  "host_permissions": [
+    "<all_urls>"
+  ],
+
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_popup": "popup/dashboard.html",
+    "default_title": "Noted - Annotate this page"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "utils/hotkey-manager.js",
+        "content/annotation-manager.js",
+        "content/text-engine.js",
+        "content/drawing-engine.js",
+        "content/content-script.js"
+      ],
+      "css": ["content/styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "commands": {
+    "activate-text-mode": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+T"
+      },
+      "description": "Text annotation mode"
+    },
+    "activate-draw-mode": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+D"
+      },
+      "description": "Draw annotation mode"
+    }
+  }
+}

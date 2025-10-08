@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Noted - Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <div class="dashboard">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <h1 class="dashboard-title">Noted</h1>
+      <div class="header-actions">
+        <button class="icon-button" id="text-mode-btn" title="Text Mode (Ctrl+Shift+T)">
+          📝
+        </button>
+        <button class="icon-button" id="draw-mode-btn" title="Draw Mode (Ctrl+Shift+D)">
+          ✏️
+        </button>
+      </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="tab-nav">
+      <button class="tab-button active" data-tab="current-page">
+        Current Page
+      </button>
+      <button class="tab-button" data-tab="all-annotations">
+        All Annotations
+      </button>
+      <button class="tab-button" data-tab="collections">
+        Collections
+      </button>
+      <button class="tab-button" data-tab="settings">
+        Settings
+      </button>
+    </nav>
+
+    <!-- Tab Content Container -->
+    <div class="tab-content-container">
+
+      <!-- Tab 1: Current Page -->
+      <div class="tab-content active" id="current-page-tab">
+        <div class="search-filter-section">
+          <input type="text" class="search-input" placeholder="Search annotations..." id="search-input">
+
+          <div class="filters">
+            <select class="filter-select" id="type-filter">
+              <option value="all">All Types</option>
+              <option value="text">Text Only</option>
+              <option value="drawing">Drawings Only</option>
+            </select>
+
+            <select class="filter-select" id="sort-select">
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="a-z">A-Z</option>
+              <option value="z-a">Z-A</option>
+              <option value="modified">Last Modified</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="annotation-list" id="current-page-list">
+          <!-- Empty state -->
+          <div class="empty-state">
+            <div class="empty-icon">📄</div>
+            <p class="empty-text">No annotations on this page.</p>
+            <p class="empty-subtext">Start annotating!</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: All Annotations -->
+      <div class="tab-content" id="all-annotations-tab">
+        <div class="search-filter-section">
+          <input type="text" class="search-input" placeholder="Search all annotations..." id="search-all-input">
+
+          <div class="filters">
+            <select class="filter-select" id="domain-filter">
+              <option value="all">All Domains</option>
+            </select>
+
+            <select class="filter-select" id="type-filter-all">
+              <option value="all">All Types</option>
+              <option value="text">Text Only</option>
+              <option value="drawing">Drawings Only</option>
+            </select>
+
+            <select class="filter-select" id="sort-select-all">
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="a-z">A-Z</option>
+              <option value="z-a">Z-A</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="annotation-list" id="all-annotations-list">
+          <!-- Empty state -->
+          <div class="empty-state">
+            <div class="empty-icon">📚</div>
+            <p class="empty-text">No annotations yet.</p>
+            <p class="empty-subtext">Annotate any webpage to get started!</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Collections -->
+      <div class="tab-content" id="collections-tab">
+        <div class="collections-header">
+          <button class="button-primary" id="new-collection-btn">
+            + New Collection
+          </button>
+        </div>
+
+        <div class="collections-list" id="collections-list">
+          <!-- Empty state -->
+          <div class="empty-state">
+            <div class="empty-icon">📁</div>
+            <p class="empty-text">No collections yet.</p>
+            <p class="empty-subtext">Organize your annotations!</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Settings -->
+      <div class="tab-content" id="settings-tab">
+        <div class="settings-section">
+          <h3 class="settings-heading">Tab Close Behavior</h3>
+
+          <label class="checkbox-label">
+            <input type="checkbox" id="keep-on-close">
+            <span>Keep annotations when closing tab (don't ask again)</span>
+          </label>
+
+          <label class="checkbox-label">
+            <input type="checkbox" id="clear-on-close">
+            <span>Clear annotations when closing tab (don't ask again)</span>
+          </label>
+
+          <p class="settings-note">Default: Show confirmation dialog</p>
+        </div>
+
+        <div class="settings-section">
+          <h3 class="settings-heading">Keyboard Shortcuts</h3>
+
+          <div class="hotkey-row">
+            <label>Text Mode:</label>
+            <input type="text" class="hotkey-input" id="text-hotkey" placeholder="Ctrl+Shift+T" readonly>
+          </div>
+
+          <div class="hotkey-row">
+            <label>Draw Mode:</label>
+            <input type="text" class="hotkey-input" id="draw-hotkey" placeholder="Ctrl+Shift+D" readonly>
+          </div>
+
+          <p class="settings-note">Custom hotkeys will be available in a future update</p>
+        </div>
+
+        <div class="settings-section">
+          <h3 class="settings-heading">Storage</h3>
+
+          <div class="storage-info">
+            <div class="storage-bar">
+              <div class="storage-bar-fill" id="storage-bar-fill" style="width: 0%"></div>
+            </div>
+            <p class="storage-text" id="storage-text">Using 0 MB of 10 MB</p>
+          </div>
+        </div>
+
+        <div class="settings-section danger-zone">
+          <h3 class="settings-heading">Danger Zone</h3>
+
+          <button class="button-secondary" id="export-btn">
+            Export Annotations (JSON)
+          </button>
+
+          <button class="button-secondary" id="import-btn">
+            Import Annotations
+          </button>
+
+          <button class="button-danger" id="clear-all-btn">
+            Clear All Annotations
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

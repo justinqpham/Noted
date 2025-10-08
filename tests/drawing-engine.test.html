@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drawing Engine Unit Tests - Noted</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+      padding: 24px;
+      background: #F5F5F7;
+      color: #1D1D1F;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+
+    .test-section {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .test-case {
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .test-case.pass {
+      background: #E8F5E9;
+      border-left: 4px solid #4CAF50;
+    }
+
+    .test-case.fail {
+      background: #FFEBEE;
+      border-left: 4px solid #F44336;
+    }
+
+    .icon {
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .test-name {
+      flex: 1;
+      font-weight: 500;
+    }
+
+    .summary {
+      display: flex;
+      gap: 24px;
+      margin-top: 24px;
+      padding: 16px;
+      background: #F5F5F7;
+      border-radius: 8px;
+    }
+
+    .summary-item {
+      flex: 1;
+      text-align: center;
+    }
+
+    .summary-value {
+      font-size: 32px;
+      font-weight: 700;
+    }
+
+    .summary-label {
+      font-size: 12px;
+      color: #6E6E73;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    button {
+      background: #007AFF;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: #0051D5;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    }
+
+    .error-detail {
+      margin-top: 8px;
+      padding: 8px;
+      background: #FFF;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #F44336;
+    }
+  </style>
+</head>
+<body>
+  <h1>Drawing Engine Unit Tests</h1>
+  <p><strong>Testing:</strong> Catmull-Rom spline interpolation and SVG path conversion</p>
+
+  <button onclick="runAllTests()">Run All Tests</button>
+
+  <div id="results"></div>
+
+  <div class="summary" id="summary" style="display: none;">
+    <div class="summary-item">
+      <div class="summary-value" id="passed-count">0</div>
+      <div class="summary-label">Passed</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-value" id="failed-count">0</div>
+      <div class="summary-label">Failed</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-value" id="total-count">0</div>
+      <div class="summary-label">Total</div>
+    </div>
+  </div>
+
+  <script src="../content/drawing-engine.js"></script>
+  <script>
+    // Test Suite
+    const testResults = [];
+
+    function assert(condition, message) {
+      if (!condition) {
+        throw new Error(message || 'Assertion failed');
+      }
+    }
+
+    function assertEquals(actual, expected, message) {
+      if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+        throw new Error(`${message || 'Equality assertion failed'}\nExpected: ${JSON.stringify(expected)}\nActual: ${JSON.stringify(actual)}`);
+      }
+    }
+
+    function assertApproxEquals(actual, expected, tolerance, message) {
+      if (Math.abs(actual - expected) > tolerance) {
+        throw new Error(`${message || 'Approximate equality assertion failed'}\nExpected: ${expected} (±${tolerance})\nActual: ${actual}`);
+      }
+    }
+
+    async function runTest(name, testFn) {
+      const result = {
+        name,
+        status: 'pending',
+        error: null
+      };
+
+      try {
+        await testFn();
+        result.status = 'pass';
+      } catch (error) {
+        result.status = 'fail';
+        result.error = error.message;
+      }
+
+      testResults.push(result);
+      renderResults();
+    }
+
+    function renderResults() {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '';
+
+      const section = document.createElement('div');
+      section.className = 'test-section';
+      section.innerHTML = '<h2>Test Results</h2>';
+
+      testResults.forEach(result => {
+        const testCase = document.createElement('div');
+        testCase.className = `test-case ${result.status}`;
+
+        const icon = result.status === 'pass' ? '✓' : '✗';
+        testCase.innerHTML = `
+          <span class="icon">${icon}</span>
+          <span class="test-name">${result.name}</span>
+          <span class="test-result">${result.status.toUpperCase()}</span>
+        `;
+
+        if (result.error) {
+          const errorDetail = document.createElement('div');
+          errorDetail.className = 'error-detail';
+          errorDetail.textContent = result.error;
+          testCase.appendChild(errorDetail);
+        }
+
+        section.appendChild(testCase);
+      });
+
+      resultsDiv.appendChild(section);
+
+      // Update summary
+      const passed = testResults.filter(r => r.status === 'pass').length;
+      const failed = testResults.filter(r => r.status === 'fail').length;
+
+      document.getElementById('passed-count').textContent = passed;
+      document.getElementById('failed-count').textContent = failed;
+      document.getElementById('total-count').textContent = testResults.length;
+      document.getElementById('summary').style.display = 'flex';
+    }
+
+    // Test Cases
+
+    async function testCatmullRomInterpolation() {
+      const engine = new DrawingEngine();
+
+      const p0 = { x: 0, y: 0 };
+      const p1 = { x: 10, y: 10 };
+      const p2 = { x: 20, y: 10 };
+      const p3 = { x: 30, y: 0 };
+
+      // Test at t=0 (should be p1)
+      const result0 = engine.catmullRom(p0, p1, p2, p3, 0);
+      assertApproxEquals(result0.x, p1.x, 0.01, 'At t=0, x should equal p1.x');
+      assertApproxEquals(result0.y, p1.y, 0.01, 'At t=0, y should equal p1.y');
+
+      // Test at t=1 (should be p2)
+      const result1 = engine.catmullRom(p0, p1, p2, p3, 1);
+      assertApproxEquals(result1.x, p2.x, 0.01, 'At t=1, x should equal p2.x');
+      assertApproxEquals(result1.y, p2.y, 0.01, 'At t=1, y should equal p2.y');
+
+      // Test at t=0.5 (should be between p1 and p2)
+      const result05 = engine.catmullRom(p0, p1, p2, p3, 0.5);
+      assert(result05.x > p1.x && result05.x < p2.x, 'At t=0.5, x should be between p1 and p2');
+      assert(result05.y >= Math.min(p1.y, p2.y), 'At t=0.5, y should be reasonable');
+    }
+
+    async function testCatmullRomSmoothness() {
+      const engine = new DrawingEngine();
+
+      const p0 = { x: 0, y: 0 };
+      const p1 = { x: 10, y: 10 };
+      const p2 = { x: 20, y: 10 };
+      const p3 = { x: 30, y: 0 };
+
+      // Test that curve is smooth (no sudden jumps)
+      let prevPoint = engine.catmullRom(p0, p1, p2, p3, 0);
+
+      for (let t = 0.1; t <= 1; t += 0.1) {
+        const point = engine.catmullRom(p0, p1, p2, p3, t);
+        const distance = Math.sqrt(
+          Math.pow(point.x - prevPoint.x, 2) +
+          Math.pow(point.y - prevPoint.y, 2)
+        );
+
+        // Distance between consecutive points should be reasonable
+        assert(distance < 5, `Curve should be smooth, distance=${distance}`);
+        prevPoint = point;
+      }
+    }
+
+    async function testSVGPathConversion() {
+      const engine = new DrawingEngine();
+
+      engine.points = [
+        { x: 0, y: 0 },
+        { x: 10, y: 10 },
+        { x: 20, y: 10 },
+        { x: 30, y: 0 }
+      ];
+
+      const svgPath = engine.convertToSVG();
+
+      // Should start with M (moveto)
+      assert(svgPath.startsWith('M'), 'SVG path should start with M command');
+
+      // Should contain C (cubic bezier) commands
+      assert(svgPath.includes('C'), 'SVG path should contain C commands for curves');
+
+      // Should contain coordinates
+      assert(/[\d.]+/.test(svgPath), 'SVG path should contain numeric coordinates');
+    }
+
+    async function testEmptySVGPath() {
+      const engine = new DrawingEngine();
+      engine.points = [];
+
+      const svgPath = engine.convertToSVG();
+      assertEquals(svgPath, '', 'Empty points should produce empty SVG path');
+    }
+
+    async function testSinglePointSVGPath() {
+      const engine = new DrawingEngine();
+      engine.points = [{ x: 10, y: 10 }];
+
+      const svgPath = engine.convertToSVG();
+      assertEquals(svgPath, '', 'Single point should produce empty SVG path');
+    }
+
+    async function testDrawingEngineInitialization() {
+      const engine = new DrawingEngine();
+
+      assertEquals(engine.points, [], 'Points should be empty initially');
+      assertEquals(engine.isDrawing, false, 'Should not be drawing initially');
+      assert(engine.strokeWidth > 0, 'Stroke width should be positive');
+      assert(engine.strokeColor.length > 0, 'Stroke color should be set');
+    }
+
+    async function testBoundingBoxCalculation() {
+      const annotation = {
+        content: {
+          points: [
+            { x: 10, y: 20 },
+            { x: 50, y: 60 },
+            { x: 30, y: 40 }
+          ]
+        }
+      };
+
+      const drawingAnnotation = new DrawingAnnotation(annotation, null);
+      const bbox = drawingAnnotation.calculateBoundingBox(annotation.content.points);
+
+      // Should include all points with padding
+      assert(bbox.x <= 10, 'Bounding box should include leftmost point');
+      assert(bbox.y <= 20, 'Bounding box should include topmost point');
+      assert(bbox.x + bbox.width >= 50, 'Bounding box should include rightmost point');
+      assert(bbox.y + bbox.height >= 60, 'Bounding box should include bottommost point');
+    }
+
+    async function testEmptyBoundingBox() {
+      const annotation = {
+        content: {
+          points: []
+        }
+      };
+
+      const drawingAnnotation = new DrawingAnnotation(annotation, null);
+      const bbox = drawingAnnotation.calculateBoundingBox(annotation.content.points);
+
+      assert(bbox.width > 0, 'Empty bounding box should have positive width');
+      assert(bbox.height > 0, 'Empty bounding box should have positive height');
+    }
+
+    async function runAllTests() {
+      testResults.length = 0; // Clear previous results
+      document.getElementById('summary').style.display = 'none';
+
+      await runTest('Catmull-Rom interpolation - endpoints', testCatmullRomInterpolation);
+      await runTest('Catmull-Rom interpolation - smoothness', testCatmullRomSmoothness);
+      await runTest('SVG path conversion - basic', testSVGPathConversion);
+      await runTest('SVG path conversion - empty points', testEmptySVGPath);
+      await runTest('SVG path conversion - single point', testSinglePointSVGPath);
+      await runTest('Drawing engine initialization', testDrawingEngineInitialization);
+      await runTest('Bounding box calculation', testBoundingBoxCalculation);
+      await runTest('Bounding box - empty points', testEmptyBoundingBox);
+
+      console.log('All tests completed!');
+    }
+  </script>
+</body>
+</html>
