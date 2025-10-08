@@ -30,6 +30,7 @@
       "matches": ["<all_urls>"],
       "js": [
         "utils/hotkey-manager.js",
+        "content/anchor-engine.js",
         "content/annotation-manager.js",
         "content/text-engine.js",
         "content/drawing-engine.js",

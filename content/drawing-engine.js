@@ -663,8 +663,17 @@ class DrawModeController {
   /**
    * Activate draw mode
    */
-  activate() {
+  async activate() {
     if (this.isActive) return;
+
+    // Check for infinite scroll
+    if (AnchorEngine.isInfiniteScrollPage()) {
+      const shouldContinue = await this.manager.showInfiniteScrollWarning();
+      if (!shouldContinue) {
+        console.log('Noted: Draw mode cancelled (infinite scroll warning)');
+        return;
+      }
+    }
 
     console.log('Noted: Draw mode activated');
     this.isActive = true;
@@ -842,10 +851,30 @@ class DrawModeController {
     const minX = Math.min(...xs);
     const minY = Math.min(...ys);
 
+    // Use center of stroke for anchoring
+    const centerX = (minX + Math.max(...xs)) / 2;
+    const centerY = (minY + Math.max(...ys)) / 2;
+
+    // Generate anchor data for robust positioning
+    const anchor = AnchorEngine.generateAnchor(
+      centerX,
+      centerY,
+      this.manager.viewportWidth,
+      this.manager.viewportHeight
+    );
+
+    // Generate page fingerprint for change detection
+    const pageFingerprint = AnchorEngine.generatePageFingerprint();
+
     const annotation = {
       id: this.manager.generateId(),
       type: 'drawing',
       url: this.manager.currentURL,
+
+      // Anchoring data (Phase 4)
+      anchor: anchor,
+      pageFingerprint: pageFingerprint,
+
       position: {
         x: minX - 10,
         y: minY - 10

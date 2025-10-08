@@ -358,8 +358,17 @@ class TextModeController {
   /**
    * Activate text annotation mode
    */
-  activate() {
+  async activate() {
     if (this.isActive) return;
+
+    // Check for infinite scroll
+    if (AnchorEngine.isInfiniteScrollPage()) {
+      const shouldContinue = await this.manager.showInfiniteScrollWarning();
+      if (!shouldContinue) {
+        console.log('Noted: Text mode cancelled (infinite scroll warning)');
+        return;
+      }
+    }
 
     console.log('Noted: Text mode activated');
     this.isActive = true;
@@ -435,10 +444,27 @@ class TextModeController {
    * @param {number} y - Y coordinate
    */
   createAnnotationAt(x, y) {
+    // Generate anchor data for robust positioning
+    const anchor = AnchorEngine.generateAnchor(
+      x,
+      y,
+      this.manager.viewportWidth,
+      this.manager.viewportHeight
+    );
+
+    // Generate page fingerprint for change detection
+    const pageFingerprint = AnchorEngine.generatePageFingerprint();
+
     const annotation = {
       id: this.manager.generateId(),
       type: 'text',
       url: this.manager.currentURL,
+
+      // Anchoring data (Phase 4)
+      anchor: anchor,
+      pageFingerprint: pageFingerprint,
+
+      // Current position (computed from anchor or fallback)
       position: {
         x: x,
         y: y,

@@ -158,6 +158,42 @@ class AnnotationManager {
 
       const urlAnnotations = Array.from(annotationMap.values());
 
+      // Phase 4: Resolve anchors and check for content changes
+      const currentPageFingerprint = AnchorEngine.generatePageFingerprint();
+      let hasContentChangedFlag = false;
+
+      urlAnnotations.forEach(annotation => {
+        // Check if annotation has anchor data (Phase 4)
+        if (annotation.anchor) {
+          // Resolve anchor to get updated position
+          const resolved = AnchorEngine.resolveAnchor(annotation.anchor);
+
+          if (resolved) {
+            // Update position based on anchor resolution
+            annotation.position.x = resolved.x;
+            annotation.position.y = resolved.y;
+
+            // Mark if position was approximate
+            if (resolved.warning === 'approximate') {
+              annotation._positionWarning = true;
+            }
+          }
+
+          // Check if page content has changed since annotation was created
+          if (annotation.pageFingerprint) {
+            if (AnchorEngine.hasContentChanged(annotation.pageFingerprint, currentPageFingerprint)) {
+              annotation._contentChanged = true;
+              hasContentChangedFlag = true;
+            }
+          }
+        }
+      });
+
+      // Show content change warning if needed
+      if (hasContentChangedFlag) {
+        this.showContentChangeWarning();
+      }
+
       allAnnotations[normalizedKey] = urlAnnotations;
 
       if (migrated) {
@@ -412,6 +448,73 @@ class AnnotationManager {
 
     console.log('Noted: Storage changed, reloading annotations');
     this.loadAnnotations();
+  }
+
+  /**
+   * Show content change warning banner
+   */
+  showContentChangeWarning() {
+    // Don't show if already showing
+    if (document.getElementById('noted-content-warning')) return;
+
+    const warning = document.createElement('div');
+    warning.id = 'noted-content-warning';
+    warning.className = 'noted-content-warning';
+    warning.innerHTML = `
+      <div class="noted-warning-icon">⚠️</div>
+      <div class="noted-warning-text">
+        This page's content has changed. Some annotations may be misaligned.
+      </div>
+      <button class="noted-warning-dismiss">Dismiss</button>
+    `;
+
+    document.body.appendChild(warning);
+
+    // Dismiss button
+    warning.querySelector('.noted-warning-dismiss').addEventListener('click', () => {
+      warning.remove();
+    });
+
+    // Auto-dismiss after 10 seconds
+    setTimeout(() => {
+      if (warning.parentNode) {
+        warning.remove();
+      }
+    }, 10000);
+  }
+
+  /**
+   * Show infinite scroll warning modal
+   * @returns {Promise<boolean>} True if user wants to continue
+   */
+  showInfiniteScrollWarning() {
+    return new Promise((resolve) => {
+      const modal = document.createElement('div');
+      modal.className = 'noted-modal-overlay';
+      modal.innerHTML = `
+        <div class="noted-modal">
+          <div class="noted-modal-icon">⚠️</div>
+          <h2 class="noted-modal-title">Infinite Scroll Detected</h2>
+          <p class="noted-modal-message">
+            This page uses infinite scrolling. Annotations may become misaligned when new content loads or old content unloads.
+          </p>
+          <div class="noted-modal-buttons">
+            <button class="noted-modal-btn noted-modal-btn-primary" data-action="continue">Annotate Anyway</button>
+            <button class="noted-modal-btn noted-modal-btn-secondary" data-action="cancel">Cancel</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      modal.addEventListener('click', (e) => {
+        const action = e.target.dataset.action;
+        if (action) {
+          modal.remove();
+          resolve(action === 'continue');
+        }
+      });
+    });
   }
 
   /**

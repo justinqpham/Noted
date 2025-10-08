@@ -396,3 +396,164 @@
 .noted-draw-size-option.selected .noted-draw-size-circle {
   background: #FFFFFF;
 }
+
+/* Phase 4: Content Change Warning Banner */
+.noted-content-warning {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483650;
+  background: linear-gradient(135deg, #FFF3CD 0%, #FFE69C 100%);
+  border: 2px solid #FF9800;
+  border-radius: 12px;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  animation: slideDown 0.3s ease;
+  max-width: 600px;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.noted-warning-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.noted-warning-text {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1D1D1F;
+  line-height: 1.4;
+}
+
+.noted-warning-dismiss {
+  background: rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1D1D1F;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.noted-warning-dismiss:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Phase 4: Infinite Scroll Warning Modal */
+.noted-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 2147483651;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.noted-modal {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 480px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: scaleIn 0.3s ease;
+  text-align: center;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.noted-modal-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.noted-modal-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1D1D1F;
+  margin: 0 0 12px 0;
+}
+
+.noted-modal-message {
+  font-size: 16px;
+  color: #6E6E73;
+  line-height: 1.6;
+  margin: 0 0 24px 0;
+}
+
+.noted-modal-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.noted-modal-btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 140px;
+}
+
+.noted-modal-btn-primary {
+  background: #007AFF;
+  color: #FFFFFF;
+}
+
+.noted-modal-btn-primary:hover {
+  background: #0051D5;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+.noted-modal-btn-secondary {
+  background: #F5F5F7;
+  color: #1D1D1F;
+}
+
+.noted-modal-btn-secondary:hover {
+  background: #E8E8ED;
+}
