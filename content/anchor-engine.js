@@ -18,6 +18,12 @@ class AnchorEngine {
     const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
     const scrollY = window.pageYOffset || document.documentElement.scrollTop;
 
+    console.log('Noted: Generating anchor', {
+      viewportPos: { x, y },
+      scroll: { x: scrollX, y: scrollY },
+      pagePos: { x: x + scrollX, y: y + scrollY }
+    });
+
     if (!element || element === document.body || element === document.documentElement) {
       // No specific anchor element - use page positioning (viewport + scroll)
       return {

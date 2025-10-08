@@ -538,6 +538,10 @@
   min-width: 140px;
   white-space: nowrap;
   overflow: visible;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.4;
 }
 
 .noted-modal-btn-primary {

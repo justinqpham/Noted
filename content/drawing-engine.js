@@ -675,7 +675,10 @@ class DrawModeController {
       }
     }
 
-    console.log('Noted: Draw mode activated');
+    console.log('Noted: Draw mode activated', {
+      existingHistory: this.drawingEngine.history.length,
+      skipNextStorageReload: this.manager.skipNextStorageReload
+    });
     this.isActive = true;
 
     // Disable all annotation interactions during draw mode
@@ -713,7 +716,11 @@ class DrawModeController {
   async deactivate() {
     if (!this.isActive) return;
 
-    console.log('Noted: Draw mode deactivated');
+    console.log('Noted: Draw mode deactivated', {
+      historyLength: this.drawingEngine.history.length,
+      historyIndex: this.drawingEngine.historyIndex,
+      skipNextStorageReload: this.manager.skipNextStorageReload
+    });
     this.isActive = false;
 
     // Save any current drawing BEFORE removing canvas
@@ -722,6 +729,7 @@ class DrawModeController {
     }
 
     // Clear drawing engine history (strokes are saved as annotations)
+    console.log('Noted: Clearing canvas history');
     this.drawingEngine.history = [];
     this.drawingEngine.historyIndex = -1;
     this.drawingEngine.points = [];

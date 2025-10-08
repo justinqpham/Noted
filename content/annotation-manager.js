@@ -172,9 +172,24 @@ class AnnotationManager {
 
           if (shouldResolveAnchor) {
             // Resolve anchor to get updated position
+            console.log('Noted: Resolving anchor for annotation', annotation.id, {
+              originalPosition: { x: annotation.position.x, y: annotation.position.y },
+              anchor: annotation.anchor,
+              currentScroll: {
+                x: window.pageXOffset || document.documentElement.scrollLeft,
+                y: window.pageYOffset || document.documentElement.scrollTop
+              }
+            });
+
             const resolved = AnchorEngine.resolveAnchor(annotation.anchor);
 
             if (resolved) {
+              console.log('Noted: Resolved position', {
+                annotationId: annotation.id,
+                resolved: resolved,
+                willUpdate: true
+              });
+
               // Update position based on anchor resolution
               annotation.position.x = resolved.x;
               annotation.position.y = resolved.y;
@@ -187,11 +202,11 @@ class AnnotationManager {
           }
 
           // Check if page content has changed since annotation was created
-          if (annotation.pageFingerprint) {
-            if (AnchorEngine.hasContentChanged(annotation.pageFingerprint, currentPageFingerprint)) {
-              annotation._contentChanged = true;
-              hasContentChangedFlag = true;
-            }
+          // DISABLED: Fingerprinting is too unstable with dynamic content (ads, timestamps, etc.)
+          // Only show warning if anchor resolution fails
+          if (annotation._positionWarning) {
+            annotation._contentChanged = true;
+            hasContentChangedFlag = true;
           }
         }
       });
