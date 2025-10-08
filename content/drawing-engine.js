@@ -6,6 +6,9 @@ class DrawingAnnotation {
     this.annotation = annotation;
     this.manager = manager;
     this.element = null;
+    this.svgElement = null;
+    this.pathElement = null;
+    this.hitAreaElement = null;
     this.isDragging = false;
     this.dragStartX = 0;
     this.dragStartY = 0;
@@ -128,7 +131,7 @@ class DrawingAnnotation {
     });
 
     // Attach event listeners (use hitArea for dragging)
-    this.attachEventListeners(container, hitArea, deleteBtn);
+    this.attachEventListeners(container, svg, hitArea, path, deleteBtn);
 
     this.element = container;
     return container;
@@ -166,7 +169,12 @@ class DrawingAnnotation {
   /**
    * Attach event listeners for dragging
    */
-  attachEventListeners(container, hitArea, deleteBtn) {
+  attachEventListeners(container, svgElement, hitArea, pathElement, deleteBtn) {
+    this.element = container;
+    this.svgElement = svgElement;
+    this.pathElement = pathElement;
+    this.hitAreaElement = hitArea;
+
     let dragStartMouseX, dragStartMouseY;
     let dragStartPosX, dragStartPosY;
 
@@ -227,45 +235,91 @@ class DrawingAnnotation {
       container.style.top = this.annotation.position.y + 'px';
     });
 
-    document.addEventListener('mouseup', () => {
+    document.addEventListener('mouseup', async () => {
       if (this.isDragging) {
         this.isDragging = false;
         hitArea.style.cursor = 'grab';
 
-        // If in draw mode, update the canvas history BEFORE saving
-        const rootContainer = document.getElementById('noted-extension-root');
-        if (rootContainer && rootContainer.getAttribute('data-draw-mode') === 'true') {
-          const drawMode = this.manager.drawMode;
-          if (drawMode && drawMode.drawingEngine) {
-            // Find the history entry and update point positions
-            const historyEntry = drawMode.drawingEngine.history.find(
-              entry => entry.annotationId === this.annotation.id
-            );
-            if (historyEntry) {
-              // Update all points by the delta
-              const deltaX = this.annotation.position.x - dragStartPosX;
-              const deltaY = this.annotation.position.y - dragStartPosY;
+        const deltaX = this.annotation.position.x - dragStartPosX;
+        const deltaY = this.annotation.position.y - dragStartPosY;
 
-              historyEntry.points = historyEntry.points.map(p => ({
-                x: p.x + deltaX,
-                y: p.y + deltaY,
-                timestamp: p.timestamp
-              }));
+        const drawMode = this.manager.drawMode;
+        const drawingEngine = drawMode?.drawingEngine;
+        let historyEntry = null;
 
-              // Update the annotation's content points too
-              this.annotation.content.points = historyEntry.points;
-
-              // Redraw canvas with updated positions
-              drawMode.drawingEngine.redrawFromHistory();
-
-              // Set flag to skip storage reload - we've already updated the canvas
-              this.manager.skipNextStorageReload = true;
-            }
-          }
+        if (drawingEngine) {
+          historyEntry = drawingEngine.history.find(
+            entry => entry.annotationId === this.annotation.id
+          ) || null;
         }
 
+        const sourcePoints = historyEntry?.points || this.annotation.content?.points || [];
+        let updatedPoints = null;
+
+        if ((deltaX !== 0 || deltaY !== 0) && sourcePoints.length > 0) {
+          updatedPoints = sourcePoints.map(point => ({
+            x: point.x + deltaX,
+            y: point.y + deltaY,
+            timestamp: point.timestamp
+          }));
+
+          if (historyEntry) {
+            historyEntry.points = updatedPoints;
+          }
+
+          this.annotation.content.points = updatedPoints;
+
+          const updatedPath = drawingEngine
+            ? drawingEngine.convertPointsToSVG(updatedPoints)
+            : (() => {
+                const tempEngine = new DrawingEngine();
+                tempEngine.points = updatedPoints;
+                return tempEngine.convertToSVG();
+              })();
+
+          if (historyEntry) {
+            historyEntry.svgPath = updatedPath;
+          }
+
+          this.annotation.content.svgPath = updatedPath;
+
+          if (pathElement) {
+            pathElement.setAttribute('d', updatedPath);
+          }
+          if (hitArea) {
+            hitArea.setAttribute('d', updatedPath);
+          }
+
+          const bbox = this.calculateBoundingBox(updatedPoints);
+          if (svgElement) {
+            svgElement.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
+            svgElement.setAttribute('width', bbox.width);
+            svgElement.setAttribute('height', bbox.height);
+          }
+
+          if (deleteBtn) {
+            const xs = updatedPoints.map(p => p.x);
+            const ys = updatedPoints.map(p => p.y);
+            const minX = Math.min(...xs);
+            const minY = Math.min(...ys);
+            const lastPoint = updatedPoints[updatedPoints.length - 1];
+            deleteBtn.style.left = `${lastPoint.x - minX - 12}px`;
+            deleteBtn.style.top = `${lastPoint.y - minY - 12}px`;
+          }
+
+          if (historyEntry && drawingEngine) {
+            drawingEngine.redrawFromHistory();
+          }
+
+          this.manager.skipNextStorageReload = true;
+        } else if (historyEntry && drawingEngine) {
+          drawingEngine.redrawFromHistory();
+        }
+
+        this.annotation.modifiedAt = Date.now();
+
         // Now save the annotation (this triggers storage reload)
-        this.saveAnnotation();
+        await this.saveAnnotation();
       }
     });
 
@@ -485,19 +539,20 @@ class DrawingEngine {
   }
 
   /**
-   * Convert points to SVG path using Catmull-Rom splines
+   * Convert an arbitrary set of points into an SVG path
+   * @param {Array} points - Array of {x, y}
    * @returns {string} SVG path string
    */
-  convertToSVG() {
-    if (this.points.length < 2) return '';
+  convertPointsToSVG(points) {
+    if (!points || points.length < 2) return '';
 
-    let path = `M ${this.points[0].x} ${this.points[0].y}`;
+    let path = `M ${points[0].x} ${points[0].y}`;
 
-    for (let i = 0; i < this.points.length - 1; i++) {
-      const p0 = this.points[Math.max(i - 1, 0)];
-      const p1 = this.points[i];
-      const p2 = this.points[i + 1];
-      const p3 = this.points[Math.min(i + 2, this.points.length - 1)];
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[Math.max(i - 1, 0)];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[Math.min(i + 2, points.length - 1)];
 
       // Create cubic bezier curve approximation of Catmull-Rom
       const cp1 = {
@@ -513,6 +568,14 @@ class DrawingEngine {
     }
 
     return path;
+  }
+
+  /**
+   * Convert points to SVG path using Catmull-Rom splines
+   * @returns {string} SVG path string
+   */
+  convertToSVG() {
+    return this.convertPointsToSVG(this.points);
   }
 
   /**
@@ -782,7 +845,7 @@ class DrawModeController {
     const annotation = {
       id: this.manager.generateId(),
       type: 'drawing',
-      url: window.location.href,
+      url: this.manager.currentURL,
       position: {
         x: minX - 10,
         y: minY - 10

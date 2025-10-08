@@ -189,7 +189,7 @@ open tests/phase3-manual-test.html
 
 ## Known Issues
 
-- **Alt+drag canvas copy**: When dragging strokes with Alt during draw mode, a visual copy may be left behind on the canvas. This clears when exiting draw mode. See [HANDOFF.md](HANDOFF.md) for technical details.
+- _None currently tracked._ Recent fixes include the Alt+drag ghost stroke bug and URL normalization to keep annotations after refresh. See [HANDOFF.md](HANDOFF.md) for history and details.
 
 ## Roadmap
 
@@ -200,7 +200,7 @@ open tests/phase3-manual-test.html
 - [x] **Draggable control panel**
 - [x] Persistent storage
 - [x] Dashboard UI
-- [ ] Fix Alt+drag canvas copy bug
+- [x] Fix Alt+drag canvas copy bug
 - [ ] Eraser tool
 - [ ] Export/import annotations
 - [ ] Cloud sync

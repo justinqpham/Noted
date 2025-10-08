@@ -438,7 +438,7 @@ class TextModeController {
     const annotation = {
       id: this.manager.generateId(),
       type: 'text',
-      url: window.location.href,
+      url: this.manager.currentURL,
       position: {
         x: x,
         y: y,

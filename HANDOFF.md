@@ -100,54 +100,38 @@
 
 ## Known Issues & Bugs
 
-### 🔴 CRITICAL: Canvas Copy Left Behind When Alt+Dragging
+### ✅ RESOLVED: Canvas Copy Left Behind When Alt+Dragging
 
-**Status**: UNRESOLVED
-**Priority**: HIGH
+**Status**: FIXED (2024-XX-XX)  
+**Priority**: HIGH → ✅ Closed
 
-**Description**:
-When Alt+dragging a stroke during draw mode, the stroke appears to duplicate - leaving a "copy" behind at the original position. The "copy" is actually the canvas raster image, while the dragged element is the SVG annotation.
+**Original Symptom**  
+Alt+dragging a stroke while in draw mode left a "ghost" raster copy on the canvas. The SVG moved, but the canvas redraw showed both the original and new positions until draw mode exited. In addition, newly saved strokes disappeared after pressing `ESC` and refreshing the page.
 
-**What Happens**:
-1. User draws a stroke in draw mode
-2. User holds Alt and drags the stroke to new position
-3. SVG annotation moves correctly
-4. Canvas shows stroke at BOTH old and new positions
-5. Pressing ESC clears the canvas and only shows SVG at new position
+**Root Cause**  
+Two separate issues compounded:
+1. **Desynchronised storage writes** – the canvas history updated before persistence completed, but `AnnotationManager` reloaded immediately (via `chrome.storage.onChanged`), pulling the stale pre-drag stroke back into DOM.
+2. **URL key drift** – Google (and other sites) append transient query params such as `zx` on refresh. Annotations were keyed by the full `window.location.href`, so every refresh created a new storage bucket, making saved strokes look like they vanished.
 
-**Root Cause Analysis**:
-The issue stems from a race condition between canvas history updates and storage reload:
+**Resolution Overview**
+- **Mouseup pipeline overhaul** (`content/drawing-engine.js#L169`):
+  - Recompute stroke points, SVG path, viewBox, delete button, and canvas history atomically after each drag.
+  - Flag `skipNextStorageReload` prior to persisting so the draw-mode canvas is not overwritten mid-frame.
+  - Await `saveAnnotation()` and stamp `modifiedAt` to keep undo history and storage aligned.
+- **URL normalization + migration** (`content/annotation-manager.js#L5`):
+  - Introduced `normalizeURL()` to strip tracking params (`utm_*`, `zx`, `_ga`, etc.) and treat `https://www.google.com/` variants as the same document.
+  - Auto-migrate any legacy annotations stored under the raw URL to the normalized key and repair `annotationIndex`.
+  - Force all creation/update/save flows (drawing & text) to persist the normalized URL so refreshes and cross-tab sync use a stable identifier.
+- **New helper** (`DrawingEngine.convertPointsToSVG`) keeps DOM, storage, and history conversions consistent when a stroke is moved.
 
-1. When dragging ends (mouseup), code attempts to:
-   - Update canvas history points with new delta
-   - Redraw canvas from updated history
-   - Call `saveAnnotation()` which triggers storage change event
+**Validation**
+- Alt+drag within draw mode no longer leaves canvas ghosts.
+- Pressing `ESC` and refreshing retains the moved stroke.
+- Existing annotations created before the fix are migrated automatically the next time the page loads.
 
-2. The storage change listener (`handleStorageChange()`) calls `loadAnnotations()` synchronously
-3. `loadAnnotations()` reloads ALL annotations from storage and re-renders them
-4. This reload interrupts the canvas update flow, causing the canvas to show the old position
-
-**Attempted Fixes**:
-1. ✅ Moved history update code BEFORE saveAnnotation() call
-2. ✅ Added `skipNextStorageReload` flag to prevent reload during drag
-3. ❌ Still doesn't work - issue persists
-
-**Code Locations**:
-- [drawing-engine.js:230-270](content/drawing-engine.js) - Mouseup handler with history update
-- [annotation-manager.js:306-316](content/annotation-manager.js) - Storage change handler with skip flag
-
-**Next Steps to Try**:
-1. Add console logging to verify the skip flag is being set and checked correctly
-2. Consider using a debounce/throttle on storage reload
-3. Investigate using requestAnimationFrame for canvas redraw timing
-4. Consider separating canvas and SVG update flows entirely
-5. Research localStorage for synchronous operations instead of chrome.storage
-
-**Web Research Findings**:
-- Chrome Storage API is not ACID-compliant and lacks transaction support
-- Common pattern: Cache storage in memory, use onChanged for cross-tab sync only
-- Canvas and SVG have fundamentally different update models (redraw vs DOM manipulation)
-- Consider localStorage for synchronous operations that need immediate consistency
+**Follow-up Considerations**
+- Monitor for sites that rely on meaningful query params; adjust the normalization allowlist if anything critical is stripped.
+- Add automated regression coverage around URL normalization and drag-save flows when test harness supports it.
 
 ---
 
@@ -161,7 +145,8 @@ The issue stems from a race condition between canvas history updates and storage
 **Key Properties**:
 - `annotations` - Array of all annotation objects
 - `containerElement` - Root DOM element for annotations
-- `currentURL` - Current page URL for scoping
+- `rawURL` - Literal `window.location.href`
+- `currentURL` - Normalized URL used as storage key (tracking params stripped)
 - `skipNextStorageReload` - Flag to prevent reload during drag operations
 
 **Key Methods**:
@@ -170,6 +155,8 @@ The issue stems from a race condition between canvas history updates and storage
 - `renderAllAnnotations()` - Renders all annotations to DOM
 - `deleteAnnotation(id)` - Removes annotation by ID
 - `handleStorageChange()` - Handles cross-tab sync events
+- `normalizeURL(url)` - Strips tracking params and ensures stable storage keys
+- `migrateRawAnnotations()` (inline in `loadAnnotations`) - Moves legacy entries from raw URL bucket to normalized bucket
 
 #### DrawingEngine (`content/drawing-engine.js`)
 **Purpose**: Manages canvas drawing, stroke recording, and history
@@ -198,6 +185,7 @@ The issue stems from a race condition between canvas history updates and storage
 - Alt+drag during draw mode
 - Delete button positioned at stroke end point
 - Hit area for interaction (invisible stroke overlay)
+- Re-builds SVG path / bounding box on drag end to keep DOM + storage + canvas synchronized
 
 **Key Methods**:
 - `render()` - Creates SVG DOM elements

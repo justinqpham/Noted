@@ -5,14 +5,55 @@ class AnnotationManager {
   constructor() {
     this.annotations = [];
     this.containerElement = null;
-    this.currentURL = window.location.href;
+    this.rawURL = window.location.href;
+    this.currentURL = this.normalizeURL(this.rawURL);
     this.viewportWidth = window.innerWidth;
     this.viewportHeight = window.innerHeight;
     this.skipNextStorageReload = false; // Flag to prevent reload during drag operations
 
-    console.log('Noted: AnnotationManager initialized for', this.currentURL);
+    console.log('Noted: AnnotationManager initialized for', {
+      rawURL: this.rawURL,
+      normalizedURL: this.currentURL
+    });
 
     this.initialize();
+  }
+
+  /**
+   * Normalize URLs by stripping common tracking/query noise so refreshes map consistently
+   * @param {string} urlString - Raw URL from window.location.href
+   * @returns {string} Normalized URL
+   */
+  normalizeURL(urlString) {
+    try {
+      const url = new URL(urlString);
+      const params = new URLSearchParams(url.search);
+      const lowerParams = Array.from(params.keys());
+
+      const STATIC_PARAMS = new Set([
+        'gclid', 'fbclid', 'msclkid', 'dclid', 'yclid', 'rbclickid', 'igshid',
+        'mc_cid', 'mc_eid', 'cmpid', 'campaignid', 'adgroupid', 'creative',
+        'creativeid', 'utm_id', 'utm_source', 'utm_medium', 'utm_campaign',
+        'utm_term', 'utm_content', 'utm_name', 'utm_creative', 'utm_place',
+        '_hsenc', '_hsmi', '_ga', '_gl', 'ref', 'referrer', 'zx', 'no_sw_cr',
+        's_kwcid', 'fb_source', 'spm', 'ck_subscriber_id'
+      ]);
+
+      lowerParams.forEach((key) => {
+        const normalizedKey = key.toLowerCase();
+        if (normalizedKey.startsWith('utm_') || STATIC_PARAMS.has(normalizedKey)) {
+          params.delete(key);
+        }
+      });
+
+      const cleanedSearch = params.toString();
+      url.search = cleanedSearch ? `?${cleanedSearch}` : '';
+
+      return url.toString();
+    } catch (error) {
+      console.warn('Noted: Failed to normalize URL, using raw value', error);
+      return urlString;
+    }
   }
 
   /**
@@ -71,9 +112,59 @@ class AnnotationManager {
    */
   async loadAnnotations() {
     try {
-      const result = await chrome.storage.local.get(['annotations']);
+      const result = await chrome.storage.local.get(['annotations', 'annotationIndex']);
       const allAnnotations = result.annotations || {};
-      const urlAnnotations = allAnnotations[this.currentURL] || [];
+      const annotationIndex = result.annotationIndex || {};
+
+      const normalizedKey = this.currentURL;
+      const rawKey = this.rawURL;
+
+      const normalizedAnnotations = allAnnotations[normalizedKey] || [];
+      const annotationMap = new Map(
+        normalizedAnnotations.map(annotation => [
+          annotation.id,
+          {
+            ...annotation,
+            url: normalizedKey
+          }
+        ])
+      );
+
+      normalizedAnnotations.forEach(annotation => {
+        annotationIndex[annotation.id] = normalizedKey;
+      });
+
+      let migrated = false;
+
+      if (rawKey !== normalizedKey && allAnnotations[rawKey] && allAnnotations[rawKey].length > 0) {
+        console.log('Noted: Migrating annotations from raw URL to normalized URL', {
+          rawKey,
+          normalizedKey,
+          count: allAnnotations[rawKey].length
+        });
+
+        allAnnotations[rawKey].forEach(annotation => {
+          const migratedAnnotation = {
+            ...annotation,
+            url: normalizedKey
+          };
+          annotationMap.set(migratedAnnotation.id, migratedAnnotation);
+          annotationIndex[migratedAnnotation.id] = normalizedKey;
+        });
+
+        delete allAnnotations[rawKey];
+        migrated = true;
+      }
+
+      const urlAnnotations = Array.from(annotationMap.values());
+
+      allAnnotations[normalizedKey] = urlAnnotations;
+
+      if (migrated) {
+        // Prevent immediate reload when migration writes back
+        this.skipNextStorageReload = true;
+        await chrome.storage.local.set({ annotations: allAnnotations, annotationIndex });
+      }
 
       console.log(`Noted: Loaded ${urlAnnotations.length} annotations for current URL`);
 
@@ -151,6 +242,9 @@ class AnnotationManager {
    */
   async addAnnotation(annotation, autoFocus = true) {
     try {
+      // Ensure annotation uses normalized URL
+      annotation.url = this.currentURL;
+
       // Add to local array
       this.annotations.push(annotation);
 
@@ -173,6 +267,9 @@ class AnnotationManager {
    */
   async updateAnnotation(annotation) {
     try {
+      // Persist normalized URL on update
+      annotation.url = this.currentURL;
+
       // Update in local array
       const index = this.annotations.findIndex(a => a.id === annotation.id);
       if (index >= 0) {
@@ -233,6 +330,8 @@ class AnnotationManager {
    */
   async saveAnnotation(annotation) {
     try {
+      annotation.url = this.currentURL;
+
       const result = await chrome.storage.local.get(['annotations', 'annotationIndex']);
       const allAnnotations = result.annotations || {};
       const annotationIndex = result.annotationIndex || {};
