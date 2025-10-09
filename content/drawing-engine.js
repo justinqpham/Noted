@@ -381,32 +381,6 @@ class DrawingAnnotation {
   }
 }
 
-function distanceBetweenSegments(a1, a2, b1, b2) {
-  return Math.min(
-    distancePointToSegment(a1, b1, b2),
-    distancePointToSegment(a2, b1, b2),
-    distancePointToSegment(b1, a1, a2),
-    distancePointToSegment(b2, a1, a2)
-  );
-}
-
-function distancePointToSegment(point, segStart, segEnd) {
-  const dx = segEnd.x - segStart.x;
-  const dy = segEnd.y - segStart.y;
-  if (dx === 0 && dy === 0) {
-    return Math.hypot(point.x - segStart.x, point.y - segStart.y);
-  }
-
-  const t = ((point.x - segStart.x) * dx + (point.y - segStart.y) * dy) / (dx * dx + dy * dy);
-  const clampedT = Math.max(0, Math.min(1, t));
-  const projection = {
-    x: segStart.x + clampedT * dx,
-    y: segStart.y + clampedT * dy
-  };
-
-  return Math.hypot(point.x - projection.x, point.y - projection.y);
-}
-
 /**
  * Drawing Engine - Handles canvas drawing with smoothing
  */
@@ -423,6 +397,9 @@ class DrawingEngine {
     this.historyIndex = -1;
     this.drawStartScrollX = 0;
     this.drawStartScrollY = 0;
+    this.historyCanvas = null;
+    this.historyCtx = null;
+    this.historyDirty = true;
   }
 
   /**
@@ -445,6 +422,13 @@ class DrawingEngine {
     `;
 
     this.ctx = this.canvas.getContext('2d');
+    if (!this.historyCanvas) {
+      this.historyCanvas = document.createElement('canvas');
+    }
+    this.historyCanvas.width = this.canvas.width;
+    this.historyCanvas.height = this.canvas.height;
+    this.historyCtx = this.historyCanvas.getContext('2d');
+    this.historyDirty = true;
     return this.canvas;
   }
 
@@ -498,9 +482,7 @@ class DrawingEngine {
     if (this.points.length < 2) return;
 
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-    // First, redraw all completed drawings from history
-    this.redrawFromHistory();
+    this.drawHistoryToMain();
 
     // Then draw the current stroke
     this.ctx.strokeStyle = this.strokeColor;
@@ -595,6 +577,7 @@ class DrawingEngine {
       strokeWidth: this.strokeWidth
     });
     this.historyIndex = this.history.length - 1;
+    this.historyDirty = true;
 
     const drawingData = {
       points: pagePoints,
@@ -663,6 +646,7 @@ class DrawingEngine {
   undo() {
     if (this.historyIndex >= 0) {
       this.historyIndex--;
+      this.historyDirty = true;
       this.redrawFromHistory();
     }
   }
@@ -673,6 +657,7 @@ class DrawingEngine {
   redo() {
     if (this.historyIndex < this.history.length - 1) {
       this.historyIndex++;
+      this.historyDirty = true;
       this.redrawFromHistory();
     }
   }
@@ -686,18 +671,43 @@ class DrawingEngine {
     this.history = this.history.filter(entry => !idSet.has(entry.annotationId));
     this.historyIndex = Math.max(-1, this.historyIndex - removedCountBeforeIndex);
 
+    this.historyDirty = true;
     this.redrawFromHistory();
   }
 
-  /**
-   * Redraw canvas from history
-   */
-  redrawFromHistory() {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  drawHistoryToMain() {
+    if (!this.canvas || !this.ctx) return;
+    this.ensureHistoryCanvas();
 
-    // Only redraw if there are strokes to show
+    if (this.historyDirty) {
+      this.renderHistory(this.historyCtx);
+      this.historyDirty = false;
+    }
+
+    this.ctx.drawImage(this.historyCanvas, 0, 0);
+  }
+
+  ensureHistoryCanvas() {
+    if (!this.historyCanvas) {
+      this.historyCanvas = document.createElement('canvas');
+      this.historyCtx = this.historyCanvas.getContext('2d');
+    }
+
+    if (!this.canvas) return;
+
+    if (this.historyCanvas.width !== this.canvas.width || this.historyCanvas.height !== this.canvas.height) {
+      this.historyCanvas.width = this.canvas.width;
+      this.historyCanvas.height = this.canvas.height;
+      this.historyCtx = this.historyCanvas.getContext('2d');
+      this.historyDirty = true;
+    }
+  }
+
+  renderHistory(context) {
+    context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
     if (this.historyIndex < 0) {
-      return; // Canvas is cleared, nothing to draw
+      return;
     }
 
     const currentScrollX = window.pageXOffset || document.documentElement.scrollLeft;
@@ -705,10 +715,10 @@ class DrawingEngine {
 
     for (let i = 0; i <= this.historyIndex; i++) {
       const drawing = this.history[i];
-      this.ctx.strokeStyle = drawing.strokeColor;
-      this.ctx.lineWidth = drawing.strokeWidth;
-      this.ctx.lineCap = 'round';
-      this.ctx.lineJoin = 'round';
+      context.strokeStyle = drawing.strokeColor;
+      context.lineWidth = drawing.strokeWidth;
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
 
       const viewportPoints = drawing.points.map(point => ({
         x: point.x - currentScrollX,
@@ -719,8 +729,8 @@ class DrawingEngine {
         continue;
       }
 
-      this.ctx.beginPath();
-      this.ctx.moveTo(viewportPoints[0].x, viewportPoints[0].y);
+      context.beginPath();
+      context.moveTo(viewportPoints[0].x, viewportPoints[0].y);
 
       for (let j = 0; j < viewportPoints.length - 1; j++) {
         const p0 = viewportPoints[Math.max(j - 1, 0)];
@@ -732,12 +742,21 @@ class DrawingEngine {
         for (let t = 0; t <= segments; t++) {
           const u = t / segments;
           const point = this.catmullRom(p0, p1, p2, p3, u);
-          this.ctx.lineTo(point.x, point.y);
+          context.lineTo(point.x, point.y);
         }
       }
 
-      this.ctx.stroke();
+      context.stroke();
     }
+  }
+
+  /**
+   * Redraw canvas from history
+   */
+  redrawFromHistory() {
+    this.historyDirty = true;
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.drawHistoryToMain();
   }
 
   /**

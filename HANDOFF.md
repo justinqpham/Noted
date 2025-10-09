@@ -117,7 +117,7 @@
 **Fixes Implemented**
 - Reworked the mouseup pipeline so stroke points, SVG path, delete button position, and canvas history all update **before** persistence. `skipNextStorageReload` is set to suppress the reload triggered by the same gesture, and the save is awaited.
 - History entries now persist **page-space points** (viewport + scroll snapshot). `redrawFromHistory()` converts to viewport space on every repaint, so scrolling mid-session no longer produces ghosts.
-- While draw mode is active we re-render the overlay on every scroll/resize, keeping the raster canvas aligned with the SVG DOM.
+- While draw mode is active we re-render the overlay on every scroll/resize, keeping the raster canvas aligned with the SVG DOM. History strokes are cached on an off-screen canvas and only re-rendered when dirty, cutting per-frame work dramatically while drawing.
 - Added `DrawingEngine.convertPointsToSVG()` so both storage and canvas use the same Catmull-Rom conversion logic.
 
 **Validation**
@@ -408,6 +408,7 @@
   - SVG path conversion regressions (empty/single point handling)
   - **New**: `finishDrawing` page-space persistence verification
   - **New**: History replay scroll-offset regression (ensures canvas redraw subtracts current scroll)
+  - **New**: History removal/index regression (ensures eraser updates undo stack)
   - Bounding box calculations for drawing annotations
 
 ### Manual Testing Checklist
