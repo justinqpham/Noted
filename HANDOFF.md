@@ -151,6 +151,7 @@
 3. **Scroll ghosting** – Eliminated by recording per-point scroll offsets and redrawing history on every scroll/resize.
 4. **Window resize drift** – Debounced `recomputeAnchorPositions()` now re-resolves anchors after resize and persists the corrected page coordinates.
 5. **Approximate anchor warning** – Added fallback to stored page coordinates so warnings appear without moving the annotation when DOM strategies fail.
+6. **Eraser interaction** – Added tool toggle + proximity checks that delete intersecting strokes and sync history/undo state.
 
 ---
 
@@ -195,6 +196,7 @@
 - `interpolatePoints(points)` - Catmull-Rom spline smoothing
 - `redrawFromHistory()` - Redraws canvas from history array
 - `undo()` - Removes last stroke (Ctrl+Z)
+- `removeFromHistory(ids)` - Utility used by the eraser to drop strokes and adjust undo index
 
 #### DrawingAnnotation (`content/drawing-engine.js`)
 **Purpose**: Renders individual drawing annotation as SVG with interactions
@@ -207,6 +209,7 @@
 - Hit area for interaction (invisible stroke overlay)
 - Re-builds SVG path / bounding box on drag end to keep DOM + storage + canvas synchronized
 - Stores stroke samples in page space and replays them on scroll/resize to prevent canvas ghosts
+- Eraser mode samples cursor path, detects stroke intersections, and removes affected annotations with undo support
 
 **Key Methods**:
 - `render()` - Creates SVG DOM elements
@@ -430,6 +433,7 @@
 - [x] Panel stays at new position during drawing
 - [x] Draw with selected color and brush size
 - [x] Undo last stroke with Ctrl+Z
+- [x] Eraser mode removes strokes while draw mode is active
 - [x] Delete button appears on hover (when NOT in draw mode)
 - [x] Delete button removes stroke
 - [x] Alt+drag moves stroke without leaving copy
@@ -480,19 +484,16 @@
 ## Next Steps & Roadmap
 
 ### Immediate Priority
-1. **Implement Eraser Tool (Phase 3 requirement)**
-   - Spec: discrete eraser mode that removes individual strokes via direct interaction.
-   - Update drawing engine history management to support eraser actions and undo/redo.
-2. **Regression Coverage for Drawing Persistence**
+1. **Regression Coverage for Drawing Persistence**
    - Automate scroll/resize persistence checks (Catmull-Rom history replay) to guard against ghost regressions.
-3. **Anchor QA on Dynamic Sites**
+2. **Anchor QA on Dynamic Sites**
    - Exercise recompute flow on dynamic SPAs (Twitter/X, Reddit) to confirm warning banner and page-space anchors behave as expected.
 
 ### Phase 3 Completion
 - [x] Fix canvas copy bug
 - [x] Implement stroke color picker
 - [x] Implement stroke width controls
-- [ ] Add eraser tool
+- [x] Add eraser tool
 - [ ] Improve stroke rendering performance
 
 ### Phase 4: Enhanced Dashboard

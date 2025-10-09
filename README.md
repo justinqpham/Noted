@@ -25,6 +25,7 @@
 - Smooth, natural brush strokes using Catmull-Rom interpolation
 - **Alt+drag** to reposition strokes while drawing
 - **Ctrl+Z** to undo mistakes
+- **Eraser mode** to remove individual strokes (with undo support)
 - Delete individual strokes
 - All drawings saved as crisp SVG vectors
 
@@ -83,8 +84,9 @@
 4. Click and drag to draw freehand strokes with selected color/size
 5. Hold `Alt` while dragging to move existing strokes
 6. Press `Ctrl+Z` to undo the last stroke
-7. Hover over strokes (outside draw mode) to delete
-8. Press `ESC` to finalize and exit drawing mode
+7. Switch to **Eraser** in the panel to remove individual strokes (undo supported)
+8. Hover over strokes (outside draw mode) to delete
+9. Press `ESC` to finalize and exit drawing mode
 
 ### Managing Annotations
 
@@ -198,6 +200,7 @@ open tests/phase3-manual-test.html
 - [x] **Stroke color picker (12 colors)**
 - [x] **Stroke width controls (5 sizes)**
 - [x] **Draggable control panel**
+- [x] **Eraser mode with undo support**
 - [x] Persistent storage
 - [x] Dashboard UI
 - [x] Fix Alt+drag canvas copy bug

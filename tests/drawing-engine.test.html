@@ -415,6 +415,29 @@
       document.documentElement.scrollTop = originalScrollTop;
     }
 
+    async function testHistoryRemovalAdjustsIndex() {
+      const engine = new DrawingEngine();
+      engine.canvas = { width: 800, height: 600 };
+      engine.ctx = {
+        clearRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {},
+        set strokeStyle(val) {}, get strokeStyle() { return '#000'; },
+        set lineWidth(val) {}, get lineWidth() { return 4; },
+        set lineCap(val) {}, set lineJoin(val) {}
+      };
+
+      engine.history = [
+        { annotationId: 'a', points: [{ x: 0, y: 0 }, { x: 10, y: 10 }], strokeColor: '#000', strokeWidth: 4 },
+        { annotationId: 'b', points: [{ x: 20, y: 20 }, { x: 30, y: 30 }], strokeColor: '#000', strokeWidth: 4 }
+      ];
+      engine.historyIndex = 1;
+
+      engine.removeFromHistory(['a']);
+
+      assertEquals(engine.history.length, 1, 'History should have one entry after removal');
+      assertEquals(engine.history[0].annotationId, 'b', 'Remaining entry should be id b');
+      assertEquals(engine.historyIndex, 0, 'History index should shift when earlier entry removed');
+    }
+
     async function runAllTests() {
       testResults.length = 0; // Clear previous results
       document.getElementById('summary').style.display = 'none';
@@ -429,6 +452,7 @@
       await runTest('Bounding box - empty points', testEmptyBoundingBox);
       await runTest('Finish drawing stores page-space points', testFinishDrawingStoresPageCoordinates);
       await runTest('History redraw accounts for scroll', testRedrawFromHistoryUsesViewportOffsets);
+      await runTest('History removal adjusts index', testHistoryRemovalAdjustsIndex);
 
       console.log('All tests completed!');
     }

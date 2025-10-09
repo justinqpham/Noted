@@ -381,6 +381,32 @@ class DrawingAnnotation {
   }
 }
 
+function distanceBetweenSegments(a1, a2, b1, b2) {
+  return Math.min(
+    distancePointToSegment(a1, b1, b2),
+    distancePointToSegment(a2, b1, b2),
+    distancePointToSegment(b1, a1, a2),
+    distancePointToSegment(b2, a1, a2)
+  );
+}
+
+function distancePointToSegment(point, segStart, segEnd) {
+  const dx = segEnd.x - segStart.x;
+  const dy = segEnd.y - segStart.y;
+  if (dx === 0 && dy === 0) {
+    return Math.hypot(point.x - segStart.x, point.y - segStart.y);
+  }
+
+  const t = ((point.x - segStart.x) * dx + (point.y - segStart.y) * dy) / (dx * dx + dy * dy);
+  const clampedT = Math.max(0, Math.min(1, t));
+  const projection = {
+    x: segStart.x + clampedT * dx,
+    y: segStart.y + clampedT * dy
+  };
+
+  return Math.hypot(point.x - projection.x, point.y - projection.y);
+}
+
 /**
  * Drawing Engine - Handles canvas drawing with smoothing
  */
@@ -651,6 +677,18 @@ class DrawingEngine {
     }
   }
 
+  removeFromHistory(annotationIds = []) {
+    if (!annotationIds.length) return;
+
+    const idSet = new Set(annotationIds);
+    const removedCountBeforeIndex = this.history.slice(0, this.historyIndex + 1).filter(entry => idSet.has(entry.annotationId)).length;
+
+    this.history = this.history.filter(entry => !idSet.has(entry.annotationId));
+    this.historyIndex = Math.max(-1, this.historyIndex - removedCountBeforeIndex);
+
+    this.redrawFromHistory();
+  }
+
   /**
    * Redraw canvas from history
    */
@@ -732,6 +770,9 @@ class DrawModeController {
     this.sectionLabels = null;
     this.panelSections = null;
     this.panelAspectRatio = 1.35;
+    this.tool = 'draw';
+    this.isErasing = false;
+    this.lastEraserPoint = null;
   }
 
   /**
@@ -831,27 +872,40 @@ class DrawModeController {
    */
   attachDrawingListeners() {
     this.canvas.addEventListener('mousedown', (e) => {
-      this.drawingEngine.startDrawing(e.clientX, e.clientY);
+      if (this.tool === 'eraser') {
+        this.handleEraserDown(e);
+      } else {
+        this.drawingEngine.startDrawing(e.clientX, e.clientY);
+      }
     });
 
     this.canvas.addEventListener('mousemove', (e) => {
       // Only add points when actually drawing
-      if (this.drawingEngine.isDrawing) {
+      if (this.tool === 'draw' && this.drawingEngine.isDrawing) {
         this.drawingEngine.addPoint(e.clientX, e.clientY);
+      }
+      if (this.tool === 'eraser') {
+        this.handleEraserMove(e);
       }
     });
 
     this.canvas.addEventListener('mouseup', () => {
       // Only save if we were actually drawing
-      if (this.drawingEngine.isDrawing) {
+      if (this.tool === 'draw' && this.drawingEngine.isDrawing) {
         this.saveCurrentDrawing();
+      }
+      if (this.tool === 'eraser') {
+        this.handleEraserUp();
       }
     });
 
     // Also handle mouse leaving the canvas
     this.canvas.addEventListener('mouseleave', () => {
-      if (this.drawingEngine.isDrawing) {
+      if (this.tool === 'draw' && this.drawingEngine.isDrawing) {
         this.saveCurrentDrawing();
+      }
+      if (this.tool === 'eraser') {
+        this.handleEraserUp();
       }
     });
   }
@@ -1078,6 +1132,23 @@ class DrawModeController {
     const brushSection = document.createElement('div');
     brushSection.className = 'noted-draw-section';
 
+    const toolToggle = document.createElement('div');
+    toolToggle.className = 'noted-draw-tool-toggle';
+
+    const drawToolBtn = document.createElement('button');
+    drawToolBtn.type = 'button';
+    drawToolBtn.className = 'noted-draw-tool-btn active';
+    drawToolBtn.textContent = 'Draw';
+
+    const eraserToolBtn = document.createElement('button');
+    eraserToolBtn.type = 'button';
+    eraserToolBtn.className = 'noted-draw-tool-btn';
+    eraserToolBtn.textContent = 'Eraser';
+
+    toolToggle.appendChild(drawToolBtn);
+    toolToggle.appendChild(eraserToolBtn);
+    brushSection.appendChild(toolToggle);
+
     const brushLabel = document.createElement('div');
     brushLabel.className = 'noted-draw-ui-label';
     brushLabel.textContent = 'Brush Size:';
@@ -1145,6 +1216,14 @@ class DrawModeController {
     // Resize currently disabled; remove handle for now
     resizeHandle.style.display = 'none';
 
+    drawToolBtn.addEventListener('click', () => {
+      this.switchTool('draw', drawToolBtn, eraserToolBtn);
+    });
+
+    eraserToolBtn.addEventListener('click', () => {
+      this.switchTool('eraser', drawToolBtn, eraserToolBtn);
+    });
+
     const rect = this.controlPanel.getBoundingClientRect();
     if (rect.height > 0) {
       this.panelAspectRatio = rect.width / rect.height;
@@ -1194,6 +1273,96 @@ class DrawModeController {
     handle.addEventListener('mouseenter', () => {
       handle.style.cursor = 'grab';
     });
+  }
+
+  switchTool(tool, drawBtn, eraserBtn) {
+    if (this.tool === tool) return;
+
+    this.tool = tool;
+
+    if (tool === 'draw') {
+      drawBtn.classList.add('active');
+      eraserBtn.classList.remove('active');
+      if (this.canvas) {
+        this.canvas.style.cursor = 'crosshair';
+      }
+    } else {
+      drawBtn.classList.remove('active');
+      eraserBtn.classList.add('active');
+      if (this.canvas) {
+        this.canvas.style.cursor = 'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2716%27 height=%2716%27 viewBox=%270 0 24 24%27%3E%3Cpath fill=%27%23000000%27 d=%27M16.24 3.56a3 3 0 0 1 4.24 4.24l-9.9 9.9a3 3 0 0 1-4.24 0l-1.41-1.41a3 3 0 0 1 0-4.24zM7.05 17.66a1 1 0 0 0 1.41 0l6.01-6.01-1.41-1.41-6.01 6.01a1 1 0 0 0 0 1.41z%27/%3E%3C/svg%3E") 8 8, crosshair';
+      }
+    }
+  }
+
+  handleEraserDown(event) {
+    this.isErasing = true;
+    this.lastEraserPoint = { x: event.clientX, y: event.clientY };
+  }
+
+  handleEraserMove(event) {
+    if (!this.isErasing) return;
+
+    const currentPoint = { x: event.clientX, y: event.clientY };
+    const radius = Math.max(12, this.drawingEngine.strokeWidth * 2);
+
+    this.eraseStrokesAlongSegment(this.lastEraserPoint, currentPoint, radius);
+    this.lastEraserPoint = currentPoint;
+  }
+
+  handleEraserUp() {
+    if (!this.isErasing) return;
+    this.isErasing = false;
+    this.lastEraserPoint = null;
+  }
+
+  eraseStrokesAlongSegment(start, end, radius) {
+    const annotations = this.manager.annotations.filter(a => a.type === 'drawing');
+    if (!annotations.length) return;
+
+    const pageStart = this.toPageCoordinates(start);
+    const pageEnd = this.toPageCoordinates(end);
+
+    const removedIds = [];
+
+    annotations.forEach(annotation => {
+      if (removedIds.includes(annotation.id)) {
+        return;
+      }
+      if (this.strokeIntersectsSegment(annotation, pageStart, pageEnd, radius)) {
+        removedIds.push(annotation.id);
+      }
+    });
+
+    if (!removedIds.length) return;
+
+    const uniqueIds = Array.from(new Set(removedIds));
+    this.manager.skipNextStorageReload = true;
+    Promise.all(uniqueIds.map(id => this.manager.deleteAnnotation(id))).then(() => {
+      this.drawingEngine.removeFromHistory(uniqueIds);
+    });
+  }
+
+  toPageCoordinates(point) {
+    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+    return { x: point.x + scrollX, y: point.y + scrollY };
+  }
+
+  strokeIntersectsSegment(annotation, pageStart, pageEnd, radius) {
+    const points = annotation.content?.points;
+    if (!points || points.length < 2) return false;
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const distance = distanceBetweenSegments(pageStart, pageEnd, p1, p2);
+      if (distance <= radius + annotation.content.strokeWidth / 2) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   setAnnotationPointerEvents(enable) {
@@ -1353,6 +1522,7 @@ class DrawModeController {
       this.sectionLabels = null;
       this.panelSections = null;
       this.panelAspectRatio = 1.35;
+      this.tool = 'draw';
     }
 
     // Remove instruction banner
