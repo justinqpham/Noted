@@ -178,14 +178,15 @@ body {
 }
 
 .filters {
-  display: flex;
+  display: grid;
   gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   margin-top: 12px;
 }
 
 .filter-select {
-  flex: 1;
-  padding: 8px 10px;
+  width: 100%;
+  padding: 8px 16px 8px 12px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   font-size: 13px;
