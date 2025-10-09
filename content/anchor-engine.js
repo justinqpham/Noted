@@ -61,6 +61,8 @@ class AnchorEngine {
       textContent: textContent,
       offsetX: offsetX,
       offsetY: offsetY,
+      pageX: x + scrollX,
+      pageY: y + scrollY,
       elementPageX: rect.left + scrollX,
       elementPageY: rect.top + scrollY,
       scrollX: scrollX,

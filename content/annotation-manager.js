@@ -10,6 +10,7 @@ class AnnotationManager {
     this.viewportWidth = window.innerWidth;
     this.viewportHeight = window.innerHeight;
     this.skipNextStorageReload = false; // Flag to prevent reload during drag operations
+    this.resizeTimeout = null;
 
     console.log('Noted: AnnotationManager initialized for', {
       rawURL: this.rawURL,
@@ -162,6 +163,11 @@ class AnnotationManager {
       const currentPageFingerprint = AnchorEngine.generatePageFingerprint();
       let hasContentChangedFlag = false;
 
+      const currentScroll = {
+        x: window.pageXOffset || document.documentElement.scrollLeft,
+        y: window.pageYOffset || document.documentElement.scrollTop
+      };
+
       urlAnnotations.forEach(annotation => {
         // Check if annotation has anchor data (Phase 4)
         if (annotation.anchor) {
@@ -175,10 +181,7 @@ class AnnotationManager {
             console.log('Noted: Resolving anchor for annotation', annotation.id, {
               originalPosition: { x: annotation.position.x, y: annotation.position.y },
               anchor: annotation.anchor,
-              currentScroll: {
-                x: window.pageXOffset || document.documentElement.scrollLeft,
-                y: window.pageYOffset || document.documentElement.scrollTop
-              }
+              currentScroll: currentScroll
             });
 
             const resolved = AnchorEngine.resolveAnchor(annotation.anchor);
@@ -190,9 +193,26 @@ class AnnotationManager {
                 willUpdate: true
               });
 
-              // Update position based on anchor resolution
-              annotation.position.x = resolved.x;
-              annotation.position.y = resolved.y;
+              // Determine target page coordinates
+              let targetPageX = annotation.anchor.pageX;
+              let targetPageY = annotation.anchor.pageY;
+
+              if (targetPageX === undefined || targetPageY === undefined) {
+                targetPageX = resolved.x + currentScroll.x;
+                targetPageY = resolved.y + currentScroll.y;
+
+                // Upgrade anchor to page strategy for future loads
+                annotation.anchor.pageX = targetPageX;
+                annotation.anchor.pageY = targetPageY;
+                annotation.anchor.strategy = 'page';
+                annotation.anchor.viewportWidth = this.viewportWidth;
+                annotation.anchor.viewportHeight = this.viewportHeight;
+                migrated = true;
+              }
+
+              // Update position based on anchor resolution (page coordinates)
+              annotation.position.x = targetPageX;
+              annotation.position.y = targetPageY;
 
               // Mark if position was approximate
               if (resolved.warning === 'approximate') {
@@ -423,18 +443,131 @@ class AnnotationManager {
   }
 
   /**
+   * Recompute anchor-based positions after layout changes
+   */
+  async recomputeAnchorPositions() {
+    if (!this.annotations.length) return;
+
+    const currentScrollX = window.pageXOffset || document.documentElement.scrollLeft;
+    const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
+    const updatedAnnotations = [];
+    let hasContentChangedFlag = false;
+
+    this.annotations.forEach(annotation => {
+      if (!annotation.anchor) {
+        return;
+      }
+
+      const resolved = AnchorEngine.resolveAnchor(annotation.anchor);
+      if (!resolved) {
+        return;
+      }
+
+      let targetPageX = annotation.anchor.pageX;
+      let targetPageY = annotation.anchor.pageY;
+
+      if (targetPageX === undefined || targetPageY === undefined) {
+        targetPageX = resolved.x + currentScrollX;
+        targetPageY = resolved.y + currentScrollY;
+
+        annotation.anchor.pageX = targetPageX;
+        annotation.anchor.pageY = targetPageY;
+        annotation.anchor.strategy = 'page';
+        annotation.anchor.viewportWidth = this.viewportWidth;
+        annotation.anchor.viewportHeight = this.viewportHeight;
+      }
+
+      if (resolved.warning === 'approximate') {
+        annotation._positionWarning = true;
+        annotation._contentChanged = true;
+        hasContentChangedFlag = true;
+      } else {
+        delete annotation._positionWarning;
+        delete annotation._contentChanged;
+      }
+
+      const needsUpdate =
+        annotation.position.x !== targetPageX ||
+        annotation.position.y !== targetPageY;
+
+      if (needsUpdate) {
+        annotation.position.x = targetPageX;
+        annotation.position.y = targetPageY;
+        annotation.anchor.pageX = targetPageX;
+        annotation.anchor.pageY = targetPageY;
+        annotation.modifiedAt = Date.now();
+        updatedAnnotations.push(annotation);
+      }
+    });
+
+    this.clearRenderedAnnotations();
+    this.renderAllAnnotations();
+
+    if (hasContentChangedFlag) {
+      this.showContentChangeWarning();
+    }
+
+    if (!updatedAnnotations.length) {
+      return;
+    }
+
+    try {
+      this.skipNextStorageReload = true;
+      const result = await chrome.storage.local.get(['annotations', 'annotationIndex']);
+      const allAnnotations = result.annotations || {};
+      const annotationIndex = result.annotationIndex || {};
+
+      const currentList = allAnnotations[this.currentURL] || [];
+      const map = new Map(currentList.map(item => [item.id, item]));
+
+      updatedAnnotations.forEach(annotation => {
+        map.set(annotation.id, annotation);
+        annotationIndex[annotation.id] = this.currentURL;
+      });
+
+      allAnnotations[this.currentURL] = Array.from(map.values());
+
+      await chrome.storage.local.set({ annotations: allAnnotations, annotationIndex });
+    } catch (error) {
+      console.error('Noted: Error saving recomputed anchors:', error);
+    }
+  }
+
+  /**
    * Handle window resize - scale annotations proportionally
    */
   handleResize() {
     const newWidth = window.innerWidth;
     const newHeight = window.innerHeight;
 
+    const usesPageAnchors = this.annotations.some(annotation => {
+      const anchor = annotation.anchor;
+      return anchor && (anchor.strategy === 'page' || typeof anchor.pageX === 'number');
+    });
+
+    if (usesPageAnchors) {
+      console.log('Noted: Window resized, re-resolving anchors (page anchors present)');
+      this.viewportWidth = newWidth;
+      this.viewportHeight = newHeight;
+
+      if (this.resizeTimeout) {
+        clearTimeout(this.resizeTimeout);
+      }
+
+      this.resizeTimeout = setTimeout(() => {
+        this.recomputeAnchorPositions();
+        this.resizeTimeout = null;
+      }, 120);
+
+      return;
+    }
+
     const scaleX = newWidth / this.viewportWidth;
     const scaleY = newHeight / this.viewportHeight;
 
     console.log('Noted: Window resized, scaling annotations', { scaleX, scaleY });
 
-    // Update all annotations
+    // Update all annotations (legacy viewport-based)
     this.annotations.forEach(annotation => {
       if (annotation.position) {
         annotation.position.x = annotation.position.x * scaleX;

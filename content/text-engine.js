@@ -14,6 +14,8 @@ class TextAnnotation {
     this.resizeStartHeight = 0;
     this.resizeStartX = 0;
     this.resizeStartY = 0;
+    this.dragOriginX = 0;
+    this.dragOriginY = 0;
   }
 
   /**
@@ -239,6 +241,8 @@ class TextAnnotation {
       this.isDragging = true;
       this.dragStartX = e.clientX - this.annotation.position.x;
       this.dragStartY = e.clientY - this.annotation.position.y;
+      this.dragOriginX = this.annotation.position.x;
+      this.dragOriginY = this.annotation.position.y;
 
       container.style.cursor = 'grabbing';
       e.preventDefault();
@@ -279,10 +283,43 @@ class TextAnnotation {
 
     // Mouse up (global)
     document.addEventListener('mouseup', () => {
-      if (this.isDragging || this.isResizing) {
+      let dragged = false;
+      let resized = false;
+
+      if (this.isDragging) {
+        dragged = true;
         this.isDragging = false;
+        container.style.cursor = 'move';
+      }
+
+      if (this.isResizing) {
+        resized = true;
         this.isResizing = false;
         container.style.cursor = 'move';
+      }
+
+      if (dragged) {
+        const deltaX = this.annotation.position.x - this.dragOriginX;
+        const deltaY = this.annotation.position.y - this.dragOriginY;
+
+        if (deltaX !== 0 || deltaY !== 0) {
+          if (this.annotation.anchor) {
+            this.annotation.anchor.strategy = 'page';
+
+            if (typeof this.annotation.anchor.pageX === 'number' &&
+                typeof this.annotation.anchor.pageY === 'number') {
+              this.annotation.anchor.pageX += deltaX;
+              this.annotation.anchor.pageY += deltaY;
+            } else {
+              this.annotation.anchor.pageX = this.annotation.position.x;
+              this.annotation.anchor.pageY = this.annotation.position.y;
+            }
+          }
+        }
+      }
+
+      if (dragged || resized) {
+        this.annotation.modifiedAt = Date.now();
         this.saveAnnotation();
       }
     });
@@ -455,6 +492,10 @@ class TextModeController {
     // Generate page fingerprint for change detection
     const pageFingerprint = AnchorEngine.generatePageFingerprint();
 
+    // Convert viewport coordinates to page coordinates since container is absolute
+    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
     const annotation = {
       id: this.manager.generateId(),
       type: 'text',
@@ -466,8 +507,8 @@ class TextModeController {
 
       // Current position (computed from anchor or fallback)
       position: {
-        x: x,
-        y: y,
+        x: x + scrollX,
+        y: y + scrollY,
         width: 250,
         height: 150
       },

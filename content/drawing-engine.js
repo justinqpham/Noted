@@ -316,6 +316,21 @@ class DrawingAnnotation {
           drawingEngine.redrawFromHistory();
         }
 
+        if (deltaX !== 0 || deltaY !== 0) {
+          if (this.annotation.anchor) {
+            this.annotation.anchor.strategy = 'page';
+
+            if (typeof this.annotation.anchor.pageX === 'number' &&
+                typeof this.annotation.anchor.pageY === 'number') {
+              this.annotation.anchor.pageX += deltaX;
+              this.annotation.anchor.pageY += deltaY;
+            } else {
+              this.annotation.anchor.pageX = this.annotation.position.x;
+              this.annotation.anchor.pageY = this.annotation.position.y;
+            }
+          }
+        }
+
         this.annotation.modifiedAt = Date.now();
 
         // Now save the annotation (this triggers storage reload)
@@ -380,6 +395,8 @@ class DrawingEngine {
     this.drawPending = false;
     this.history = [];  // For undo/redo
     this.historyIndex = -1;
+    this.drawStartScrollX = 0;
+    this.drawStartScrollY = 0;
   }
 
   /**
@@ -410,7 +427,15 @@ class DrawingEngine {
    */
   startDrawing(x, y) {
     this.isDrawing = true;
-    this.points = [{ x, y, timestamp: Date.now() }];
+    this.drawStartScrollX = window.pageXOffset || document.documentElement.scrollLeft;
+    this.drawStartScrollY = window.pageYOffset || document.documentElement.scrollTop;
+    this.points = [{
+      x,
+      y,
+      timestamp: Date.now(),
+      scrollX: this.drawStartScrollX,
+      scrollY: this.drawStartScrollY
+    }];
   }
 
   /**
@@ -419,7 +444,16 @@ class DrawingEngine {
   addPoint(x, y) {
     if (!this.isDrawing) return;
 
-    this.points.push({ x, y, timestamp: Date.now() });
+    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
+    this.points.push({
+      x,
+      y,
+      timestamp: Date.now(),
+      scrollX,
+      scrollY
+    });
 
     // Throttle: only redraw every 16ms (60fps)
     if (!this.drawPending) {
@@ -508,8 +542,19 @@ class DrawingEngine {
       return null;
     }
 
-    // Convert to SVG path
-    const svgPath = this.convertToSVG();
+    // Convert stored viewport points to page coordinates
+    const pagePoints = this.points.map(point => {
+      const pointScrollX = point.scrollX !== undefined ? point.scrollX : this.drawStartScrollX;
+      const pointScrollY = point.scrollY !== undefined ? point.scrollY : this.drawStartScrollY;
+      return {
+        x: point.x + pointScrollX,
+        y: point.y + pointScrollY,
+        timestamp: point.timestamp
+      };
+    });
+
+    // Convert to SVG path using page coordinates
+    const svgPath = this.convertPointsToSVG(pagePoints);
 
     // If we're in the middle of history (after undo), truncate the future
     if (this.historyIndex < this.history.length - 1) {
@@ -518,7 +563,7 @@ class DrawingEngine {
 
     // Save to history for undo/redo
     this.history.push({
-      points: [...this.points],
+      points: pagePoints,
       svgPath,
       strokeColor: this.strokeColor,
       strokeWidth: this.strokeWidth
@@ -526,7 +571,7 @@ class DrawingEngine {
     this.historyIndex = this.history.length - 1;
 
     const drawingData = {
-      points: this.points,
+      points: pagePoints,
       svgPath,
       strokeColor: this.strokeColor,
       strokeWidth: this.strokeWidth
@@ -575,7 +620,15 @@ class DrawingEngine {
    * @returns {string} SVG path string
    */
   convertToSVG() {
-    return this.convertPointsToSVG(this.points);
+    const points = this.points.map(point => {
+      const pointScrollX = point.scrollX !== undefined ? point.scrollX : (this.drawStartScrollX || 0);
+      const pointScrollY = point.scrollY !== undefined ? point.scrollY : (this.drawStartScrollY || 0);
+      return {
+        x: point.x + pointScrollX,
+        y: point.y + pointScrollY
+      };
+    });
+    return this.convertPointsToSVG(points);
   }
 
   /**
@@ -609,6 +662,9 @@ class DrawingEngine {
       return; // Canvas is cleared, nothing to draw
     }
 
+    const currentScrollX = window.pageXOffset || document.documentElement.scrollLeft;
+    const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
+
     for (let i = 0; i <= this.historyIndex; i++) {
       const drawing = this.history[i];
       this.ctx.strokeStyle = drawing.strokeColor;
@@ -616,14 +672,23 @@ class DrawingEngine {
       this.ctx.lineCap = 'round';
       this.ctx.lineJoin = 'round';
 
-      this.ctx.beginPath();
-      this.ctx.moveTo(drawing.points[0].x, drawing.points[0].y);
+      const viewportPoints = drawing.points.map(point => ({
+        x: point.x - currentScrollX,
+        y: point.y - currentScrollY
+      }));
 
-      for (let j = 0; j < drawing.points.length - 1; j++) {
-        const p0 = drawing.points[Math.max(j - 1, 0)];
-        const p1 = drawing.points[j];
-        const p2 = drawing.points[j + 1];
-        const p3 = drawing.points[Math.min(j + 2, drawing.points.length - 1)];
+      if (viewportPoints.length < 2) {
+        continue;
+      }
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(viewportPoints[0].x, viewportPoints[0].y);
+
+      for (let j = 0; j < viewportPoints.length - 1; j++) {
+        const p0 = viewportPoints[Math.max(j - 1, 0)];
+        const p1 = viewportPoints[j];
+        const p2 = viewportPoints[j + 1];
+        const p3 = viewportPoints[Math.min(j + 2, viewportPoints.length - 1)];
 
         const segments = 10;
         for (let t = 0; t <= segments; t++) {
@@ -658,6 +723,15 @@ class DrawModeController {
     this.colorPalette = null;
     this.brushSelector = null;
     this.currentDrawings = [];  // Temporary storage during session
+    this.scrollHandler = null;
+    this.colorContainer = null;
+    this.sizeContainer = null;
+    this.colorOptions = null;
+    this.sizeOptions = null;
+    this.sizeCircles = null;
+    this.sectionLabels = null;
+    this.panelSections = null;
+    this.panelAspectRatio = 1.35;
   }
 
   /**
@@ -708,6 +782,18 @@ class DrawModeController {
     // Attach event listeners
     this.attachDrawingListeners();
     this.attachKeyboardListeners();
+
+    this.scrollHandler = () => {
+      if (!this.canvas) return;
+      this.drawingEngine.redrawFromHistory();
+
+      if (this.drawingEngine.isDrawing) {
+        this.drawingEngine.drawSmoothedPath();
+      }
+    };
+
+    window.addEventListener('scroll', this.scrollHandler, { passive: true });
+    window.addEventListener('resize', this.scrollHandler);
   }
 
   /**
@@ -722,6 +808,12 @@ class DrawModeController {
       skipNextStorageReload: this.manager.skipNextStorageReload
     });
     this.isActive = false;
+
+    if (this.scrollHandler) {
+      window.removeEventListener('scroll', this.scrollHandler);
+      window.removeEventListener('resize', this.scrollHandler);
+      this.scrollHandler = null;
+    }
 
     // Save any current drawing BEFORE removing canvas
     if (this.drawingEngine.points.length > 0) {
@@ -859,17 +951,30 @@ class DrawModeController {
     const minX = Math.min(...xs);
     const minY = Math.min(...ys);
 
-    // Use center of stroke for anchoring
-    const centerX = (minX + Math.max(...xs)) / 2;
-    const centerY = (minY + Math.max(...ys)) / 2;
+    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
+    const topLeftPageX = minX - 10;
+    const topLeftPageY = minY - 10;
+    const topLeftViewportX = topLeftPageX - scrollX;
+    const topLeftViewportY = topLeftPageY - scrollY;
 
     // Generate anchor data for robust positioning
     const anchor = AnchorEngine.generateAnchor(
-      centerX,
-      centerY,
+      topLeftViewportX,
+      topLeftViewportY,
       this.manager.viewportWidth,
       this.manager.viewportHeight
     );
+
+    // Force page-based anchor aligned with annotation origin
+    anchor.strategy = 'page';
+    anchor.pageX = topLeftPageX;
+    anchor.pageY = topLeftPageY;
+    anchor.offsetX = 0;
+    anchor.offsetY = 0;
+    delete anchor.elementPageX;
+    delete anchor.elementPageY;
 
     // Generate page fingerprint for change detection
     const pageFingerprint = AnchorEngine.generatePageFingerprint();
@@ -883,9 +988,10 @@ class DrawModeController {
       anchor: anchor,
       pageFingerprint: pageFingerprint,
 
+      // Position in page coordinates (container is position: absolute)
       position: {
-        x: minX - 10,
-        y: minY - 10
+        x: topLeftPageX,
+        y: topLeftPageY
       },
       content: {
         svgPath: drawingData.svgPath,
@@ -961,6 +1067,7 @@ class DrawModeController {
       colorOption.className = 'noted-draw-color-option';
       colorOption.style.background = color.hex;
       colorOption.title = color.name;
+      colorOption.dataset.baseSize = '32';
 
       // Add border for white color
       if (color.hex === '#FFFFFF') {
@@ -1014,12 +1121,12 @@ class DrawModeController {
       const sizeOption = document.createElement('div');
       sizeOption.className = 'noted-draw-size-option';
       sizeOption.title = `${size.value}px`;
-
       // Create a solid black circle inside
       const circle = document.createElement('div');
       circle.className = 'noted-draw-size-circle';
       circle.style.width = `${size.displaySize}px`;
       circle.style.height = `${size.displaySize}px`;
+      circle.dataset.baseSize = size.displaySize.toString();
       sizeOption.appendChild(circle);
 
       if (size.value === this.drawingEngine.strokeWidth) {
@@ -1040,11 +1147,33 @@ class DrawModeController {
     brushSection.appendChild(sizeContainer);
     this.controlPanel.appendChild(brushSection);
 
+    // Resize handle
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'noted-draw-resize-handle';
+    this.controlPanel.appendChild(resizeHandle);
+
     // Add to document
     document.body.appendChild(this.controlPanel);
 
-    // Make panel draggable
+    this.colorContainer = colorContainer;
+    this.sizeContainer = sizeContainer;
+    this.colorOptions = Array.from(colorContainer.querySelectorAll('.noted-draw-color-option'));
+    this.sizeOptions = Array.from(sizeContainer.querySelectorAll('.noted-draw-size-option'));
+    this.sizeCircles = Array.from(sizeContainer.querySelectorAll('.noted-draw-size-circle'));
+    this.sectionLabels = Array.from(this.controlPanel.querySelectorAll('.noted-draw-ui-label'));
+    this.panelSections = Array.from(this.controlPanel.querySelectorAll('.noted-draw-section'));
+
+    // Make panel draggable and resizable
     this.makePanelDraggable(dragHandle);
+    // Resize currently disabled; remove handle for now
+    resizeHandle.style.display = 'none';
+
+    const rect = this.controlPanel.getBoundingClientRect();
+    if (rect.height > 0) {
+      this.panelAspectRatio = rect.width / rect.height;
+    }
+    const initialWidth = rect.width;
+    this.applyPanelScale(initialWidth);
   }
 
   /**
@@ -1091,6 +1220,116 @@ class DrawModeController {
   }
 
   /**
+   * Make control panel resizable from the bottom-right handle
+   */
+  makePanelResizable(handle) {
+    let isResizing = false;
+    let startX, startY, startWidth, startHeight;
+    const minWidth = 220;
+    const maxWidth = 420;
+    const minHeight = 200;
+    const maxHeight = 420;
+
+    handle.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+
+      const rect = this.controlPanel.getBoundingClientRect();
+      startWidth = rect.width;
+      startHeight = rect.height;
+      if (rect.height > 0) {
+        this.panelAspectRatio = rect.width / rect.height;
+      }
+
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+
+      const ratio = this.panelAspectRatio || (startWidth / Math.max(startHeight, 1));
+      const widthLowerBound = Math.max(minWidth, minHeight * ratio);
+      const widthUpperBound = Math.min(maxWidth, maxHeight * ratio);
+
+      const widthFromWidth = startWidth + deltaX;
+      const widthFromHeight = (startHeight + deltaY) * ratio;
+      const dominant = Math.abs(deltaY) > Math.abs(deltaX) ? widthFromHeight : widthFromWidth;
+
+      const clamp = (min, value, max) => Math.max(min, Math.min(max, value));
+      const newWidth = clamp(widthLowerBound, dominant, widthUpperBound);
+      const newHeight = clamp(minHeight, newWidth / ratio, maxHeight);
+
+      this.controlPanel.style.width = `${newWidth}px`;
+      this.controlPanel.style.height = `${newHeight}px`;
+      this.applyPanelScale(newWidth);
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isResizing) {
+        isResizing = false;
+        document.body.style.userSelect = '';
+        const rect = this.controlPanel.getBoundingClientRect();
+        if (rect.height > 0) {
+          this.panelAspectRatio = rect.width / rect.height;
+        }
+        this.applyPanelScale(rect.width);
+      }
+    });
+  }
+
+  /**
+   * Apply responsive sizing for panel contents based on width
+   * @param {number} width - Current panel width
+   */
+  applyPanelScale(width) {
+    if (!this.controlPanel) return;
+
+    const baseWidth = 260;
+    const minScale = 0.8;
+    const maxScale = 1.4;
+    const clamp = (min, value, max) => Math.max(min, Math.min(max, value));
+    const scale = clamp(minScale, width / baseWidth, maxScale);
+
+    const colorColumns = width < 240 ? 5 : 6;
+    const colorSize = clamp(24, 32 * scale, 48);
+    const colorGap = clamp(6, 8 * scale, 14);
+    const sectionPadding = clamp(10, 12 * scale, 18);
+    const labelSize = clamp(10, 12 * scale, 16);
+    const labelSpacing = clamp(6, 8 * scale, 12);
+    const sizeGap = clamp(8, 10 * scale, 16);
+    const outerCircle = clamp(32, 40 * scale, 60);
+    const innerBase = clamp(12, 18 * scale, 28);
+
+    this.controlPanel.style.setProperty('--panel-scale', scale.toFixed(3));
+    this.controlPanel.style.setProperty('--panel-color-columns', `${colorColumns}`);
+    this.controlPanel.style.setProperty('--panel-color-size', `${colorSize}px`);
+    this.controlPanel.style.setProperty('--panel-color-gap', `${colorGap}px`);
+    this.controlPanel.style.setProperty('--panel-section-padding', `${sectionPadding}px`);
+    this.controlPanel.style.setProperty('--panel-label-size', `${labelSize}px`);
+    this.controlPanel.style.setProperty('--panel-label-spacing', `${labelSpacing}px`);
+    this.controlPanel.style.setProperty('--panel-size-gap', `${sizeGap}px`);
+    this.controlPanel.style.setProperty('--panel-size-circle', `${outerCircle}px`);
+    this.controlPanel.style.setProperty('--panel-size-circle-inner', `${innerBase}px`);
+
+    if (this.sizeCircles) {
+      const maxInner = innerBase * 1.6;
+      const minInner = innerBase * 0.6;
+      this.sizeCircles.forEach(circle => {
+        const base = parseFloat(circle.dataset.baseSize || '12');
+        const size = clamp(minInner, base * (scale / 1.5 + 0.3), maxInner);
+        circle.style.width = `${size}px`;
+        circle.style.height = `${size}px`;
+      });
+    }
+  }
+
+  /**
    * Show instruction banner
    */
   showInstruction() {
@@ -1108,6 +1347,14 @@ class DrawModeController {
     if (this.controlPanel) {
       this.controlPanel.remove();
       this.controlPanel = null;
+      this.colorContainer = null;
+      this.sizeContainer = null;
+      this.colorOptions = null;
+      this.sizeOptions = null;
+      this.sizeCircles = null;
+      this.sectionLabels = null;
+      this.panelSections = null;
+      this.panelAspectRatio = 1.35;
     }
 
     // Remove instruction banner

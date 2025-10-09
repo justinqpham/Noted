@@ -39,6 +39,7 @@
 - **NEW**: 12-color palette in 6x2 grid layout
 - **NEW**: 5 brush sizes (2px, 4px, 6px, 8px, 12px) displayed as solid black circles
 - **NEW**: Draggable control panel with grab handle
+- **NEW**: Resizable drawing control panel
 - **NEW**: Visual selection feedback (blue borders/backgrounds)
 
 #### Phase 4: Dashboard (Partial) ✅
@@ -100,38 +101,57 @@
 
 ## Known Issues & Bugs
 
-### ✅ RESOLVED: Canvas Copy Left Behind When Alt+Dragging
+### ✅ RESOLVED: Canvas Ghosting (Alt+Drag & Scroll)
 
 **Status**: FIXED (2024-XX-XX)  
 **Priority**: HIGH → ✅ Closed
 
-**Original Symptom**  
-Alt+dragging a stroke while in draw mode left a "ghost" raster copy on the canvas. The SVG moved, but the canvas redraw showed both the original and new positions until draw mode exited. In addition, newly saved strokes disappeared after pressing `ESC` and refreshing the page.
+**Symptoms**
+- Alt+dragging a stroke left a “ghost” raster copy on the canvas until draw mode exited.
+- After drawing several strokes, scrolling the page caused earlier strokes to reappear offset from their SVG counterparts.
+- Occasionally a stroke vanished after `ESC` + refresh because the canvas and storage fell out of sync.
 
-**Root Cause**  
-Two separate issues compounded:
-1. **Desynchronised storage writes** – the canvas history updated before persistence completed, but `AnnotationManager` reloaded immediately (via `chrome.storage.onChanged`), pulling the stale pre-drag stroke back into DOM.
-2. **URL key drift** – Google (and other sites) append transient query params such as `zx` on refresh. Annotations were keyed by the full `window.location.href`, so every refresh created a new storage bucket, making saved strokes look like they vanished.
+**Root Causes**
+1. **Storage reload race** – `saveAnnotation()` triggered a storage reload before the updated canvas history was applied, repainting the pre-drag frame.
+2. **Viewport-only stroke points** – history samples were stored without scroll offsets, so replaying them after a scroll/resize rendered in the wrong place.
 
-**Resolution Overview**
-- **Mouseup pipeline overhaul** (`content/drawing-engine.js#L169`):
-  - Recompute stroke points, SVG path, viewBox, delete button, and canvas history atomically after each drag.
-  - Flag `skipNextStorageReload` prior to persisting so the draw-mode canvas is not overwritten mid-frame.
-  - Await `saveAnnotation()` and stamp `modifiedAt` to keep undo history and storage aligned.
-- **URL normalization + migration** (`content/annotation-manager.js#L5`):
-  - Introduced `normalizeURL()` to strip tracking params (`utm_*`, `zx`, `_ga`, etc.) and treat `https://www.google.com/` variants as the same document.
-  - Auto-migrate any legacy annotations stored under the raw URL to the normalized key and repair `annotationIndex`.
-  - Force all creation/update/save flows (drawing & text) to persist the normalized URL so refreshes and cross-tab sync use a stable identifier.
-- **New helper** (`DrawingEngine.convertPointsToSVG`) keeps DOM, storage, and history conversions consistent when a stroke is moved.
+**Fixes Implemented**
+- Reworked the mouseup pipeline so stroke points, SVG path, delete button position, and canvas history all update **before** persistence. `skipNextStorageReload` is set to suppress the reload triggered by the same gesture, and the save is awaited.
+- History entries now persist **page-space points** (viewport + scroll snapshot). `redrawFromHistory()` converts to viewport space on every repaint, so scrolling mid-session no longer produces ghosts.
+- While draw mode is active we re-render the overlay on every scroll/resize, keeping the raster canvas aligned with the SVG DOM.
+- Added `DrawingEngine.convertPointsToSVG()` so both storage and canvas use the same Catmull-Rom conversion logic.
 
 **Validation**
-- Alt+drag within draw mode no longer leaves canvas ghosts.
-- Pressing `ESC` and refreshing retains the moved stroke.
-- Existing annotations created before the fix are migrated automatically the next time the page loads.
+- Stress-tested Alt+drag across long documents with repeated ESC/refresh cycles—no residual ghosts.
+- Scrolling between strokes (including undo/redo) keeps canvas and SVG synchronized.
+- Existing annotations created before the fix were migrated successfully via URL normalization.
 
-**Follow-up Considerations**
-- Monitor for sites that rely on meaningful query params; adjust the normalization allowlist if anything critical is stripped.
-- Add automated regression coverage around URL normalization and drag-save flows when test harness supports it.
+**Follow-up**
+- Consider automated regression scripts that draw → scroll → draw to guard future changes.
+- Monitor memory usage (history points carry two additional floats each) though current limits remain well below thresholds.
+
+### ✅ RESOLVED: Annotation Position Jumping After Refresh & Window Resize
+
+**Status**: FIXED (2024-XX-XX)  
+**Summary**: Switching the overlay container to `position: absolute` made every annotation interpret `position.x/y` as page coordinates, but we were still persisting viewport-relative values. Each refresh flipped between the two spaces, nudging annotations ~120px diagonally on every load.
+
+**Resolution Overview**
+- Store **page-relative coordinates** (`client + scroll`) when creating drawings and text notes so their DOM containers remain aligned with the document.
+- Upgrade anchor generation (`AnchorEngine.generateAnchor`) to emit `pageX/pageY` immediately, and migrate any legacy anchors to `strategy: 'page'` during `loadAnnotations()`.
+- Keep anchor metadata in sync on drag by bumping `pageX/pageY` with the movement delta and forcing `strategy: 'page'` once the user repositions an annotation.
+- Persist the upgraded anchor payload back to `chrome.storage` once per load, preventing oscillation between coordinate systems on future refreshes.
+- Replaced proportional resize scaling with a **debounced `recomputeAnchorPositions()`** pass that re-resolves anchors against the live DOM after a resize and writes the updated page coordinates back to storage (eliminates monitor hopping drift).
+- Added graceful fallback: if DOM strategies fail, stored page coordinates are reused and `_contentChanged` is flagged so the warning banner appears without moving the annotation.
+
+**Result**: Both drawings and text annotations now survive draw-mode exits, ESC presses, and full refreshes without spatial drift—even on sites that mutate their query parameters every load.
+
+### Troubleshooting Timeline (for future reference)
+
+1. **Alt+drag ghosting** – Resolved by synchronising canvas redraw with persistence (`skipNextStorageReload`, awaited save).
+2. **Refresh drift** – Fixed by storing annotation positions/anchors in page space and migrating stored data.
+3. **Scroll ghosting** – Eliminated by recording per-point scroll offsets and redrawing history on every scroll/resize.
+4. **Window resize drift** – Debounced `recomputeAnchorPositions()` now re-resolves anchors after resize and persists the corrected page coordinates.
+5. **Approximate anchor warning** – Added fallback to stored page coordinates so warnings appear without moving the annotation when DOM strategies fail.
 
 ---
 
@@ -157,6 +177,7 @@ Two separate issues compounded:
 - `handleStorageChange()` - Handles cross-tab sync events
 - `normalizeURL(url)` - Strips tracking params and ensures stable storage keys
 - `migrateRawAnnotations()` (inline in `loadAnnotations`) - Moves legacy entries from raw URL bucket to normalized bucket
+- `recomputeAnchorPositions()` - Debounced resize reconciliation that re-resolves anchors in page space and updates storage
 
 #### DrawingEngine (`content/drawing-engine.js`)
 **Purpose**: Manages canvas drawing, stroke recording, and history
@@ -186,6 +207,7 @@ Two separate issues compounded:
 - Delete button positioned at stroke end point
 - Hit area for interaction (invisible stroke overlay)
 - Re-builds SVG path / bounding box on drag end to keep DOM + storage + canvas synchronized
+- Stores stroke samples in page space and replays them on scroll/resize to prevent canvas ghosts
 
 **Key Methods**:
 - `render()` - Creates SVG DOM elements
@@ -202,6 +224,7 @@ Two separate issues compounded:
 - Global cursor management
 - Combined control panel (color + brush size)
 - Draggable control panel with grab handle
+- Brush size selector uses dot-only buttons (no rectangular backgrounds) that scale responsively
 
 ---
 

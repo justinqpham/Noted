@@ -273,8 +273,19 @@
   pointer-events: auto;
   animation: slideInLeft 0.3s ease;
   min-width: 220px;
+  min-height: 200px;
   backdrop-filter: blur(10px);
   overflow: hidden;
+  --panel-scale: 1;
+  --panel-color-columns: 6;
+  --panel-color-size: 32px;
+  --panel-color-gap: 8px;
+  --panel-section-padding: 12px;
+  --panel-label-size: 12px;
+  --panel-label-spacing: 8px;
+  --panel-size-gap: 10px;
+  --panel-size-circle: 32px;
+  --panel-size-circle-inner: 18px;
 }
 
 /* Drag handle at top of panel */
@@ -295,7 +306,7 @@
 
 /* Panel sections */
 .noted-draw-section {
-  padding: 12px;
+  padding: var(--panel-section-padding);
 }
 
 /* Divider between sections */
@@ -308,15 +319,16 @@
 /* Color grid layout */
 .noted-draw-color-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(var(--panel-color-columns), minmax(0, 1fr));
+  gap: var(--panel-color-gap);
 }
 
 /* Brush size grid layout */
 .noted-draw-size-grid {
   display: flex;
-  gap: 8px;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--panel-size-gap);
 }
 
 @keyframes slideInLeft {
@@ -331,18 +343,31 @@
 }
 
 .noted-draw-ui-label {
-  font-size: 12px;
+  font-size: var(--panel-label-size);
   font-weight: 600;
   color: #6E6E73;
-  margin-bottom: 8px;
+  margin-bottom: var(--panel-label-spacing);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
+.noted-draw-resize-handle {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 16px;
+  height: 16px;
+  border-right: 2px solid rgba(0, 0, 0, 0.25);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.25);
+  border-radius: 0 0 4px 0;
+  cursor: default;
+  display: none;
+}
+
 /* Draw Color Options */
 .noted-draw-color-option {
-  width: 32px;
-  height: 32px;
+  width: var(--panel-color-size);
+  height: var(--panel-color-size);
   border-radius: 50%;
   cursor: pointer;
   border: 3px solid transparent;
@@ -363,21 +388,20 @@
 
 /* Draw Size Options */
 .noted-draw-size-option {
-  width: 40px;
-  height: 40px;
+  width: var(--panel-size-circle);
+  height: var(--panel-size-circle);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 50%;
   cursor: pointer;
-  border: 2px solid transparent;
-  background: #F5F5F7;
-  transition: all 0.2s;
+  border: none;
+  background: none;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .noted-draw-size-option:hover {
-  background: #E8E8ED;
-  transform: scale(1.1);
+  transform: scale(1.08);
 }
 
 /* Solid black circles for brush sizes */
@@ -385,16 +409,17 @@
   background: #000000;
   border-radius: 50%;
   transition: all 0.2s;
+  width: var(--panel-size-circle-inner);
+  height: var(--panel-size-circle-inner);
 }
 
 .noted-draw-size-option.selected {
-  background: #007AFF;
-  border-color: #007AFF;
-  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.2);
 }
 
 .noted-draw-size-option.selected .noted-draw-size-circle {
   background: #FFFFFF;
+  border: 2px solid #007AFF;
 }
 
 /* Phase 4: Content Change Warning Banner */
