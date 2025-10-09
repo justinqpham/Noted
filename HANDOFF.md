@@ -443,6 +443,10 @@
 - [ ] Shows all annotations for current page
 - [ ] Clear All requires double-click confirmation
 - [ ] Clear All removes all annotations
+- [ ] Search/filter on Current Page tab filters annotations live
+- [ ] Search/filter/sort on All Annotations tab reflects expected results
+- [ ] Domain filter lists available hosts and filters accordingly
+- [ ] Deleting an annotation from dashboard removes it immediately from the page
 
 **Cross-Tab Sync**:
 - [ ] Annotations created in one tab appear in another tab (same URL)
