@@ -39,7 +39,6 @@
 - **NEW**: 12-color palette in 6x2 grid layout
 - **NEW**: 5 brush sizes (2px, 4px, 6px, 8px, 12px) displayed as solid black circles
 - **NEW**: Draggable control panel with grab handle
-- **NEW**: Resizable drawing control panel
 - **NEW**: Visual selection feedback (blue borders/backgrounds)
 
 #### Phase 4: Dashboard (Partial) ✅
@@ -468,18 +467,19 @@
 
 ## Next Steps & Roadmap
 
-### Immediate Priority (Fix Critical Bug)
-1. **Resolve Alt+Drag Canvas Copy Issue**
-   - Add detailed console logging to trace execution flow
-   - Verify `skipNextStorageReload` flag is working correctly
-   - Consider refactoring storage reload to use debouncing
-   - Investigate requestAnimationFrame for canvas updates
-   - Research using localStorage instead of chrome.storage for drawing history
+### Immediate Priority
+1. **Implement Eraser Tool (Phase 3 requirement)**
+   - Spec: discrete eraser mode that removes individual strokes via direct interaction.
+   - Update drawing engine history management to support eraser actions and undo/redo.
+2. **Regression Coverage for Drawing Persistence**
+   - Automate scroll/resize persistence checks (Catmull-Rom history replay) to guard against ghost regressions.
+3. **Anchor QA on Dynamic Sites**
+   - Exercise recompute flow on dynamic SPAs (Twitter/X, Reddit) to confirm warning banner and page-space anchors behave as expected.
 
 ### Phase 3 Completion
-- [ ] Fix canvas copy bug
-- [ ] Implement stroke color picker
-- [ ] Implement stroke width controls
+- [x] Fix canvas copy bug
+- [x] Implement stroke color picker
+- [x] Implement stroke width controls
 - [ ] Add eraser tool
 - [ ] Improve stroke rendering performance
 
