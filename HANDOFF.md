@@ -399,6 +399,14 @@
 
 ## Testing
 
+### Automated Tests
+- `tests/drawing-engine.test.html`
+  - Catmull-Rom interpolation endpoint & smoothness checks
+  - SVG path conversion regressions (empty/single point handling)
+  - **New**: `finishDrawing` page-space persistence verification
+  - **New**: History replay scroll-offset regression (ensures canvas redraw subtracts current scroll)
+  - Bounding box calculations for drawing annotations
+
 ### Manual Testing Checklist
 
 **Text Annotations**:

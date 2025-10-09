@@ -348,6 +348,73 @@
       assert(bbox.height > 0, 'Empty bounding box should have positive height');
     }
 
+    async function testFinishDrawingStoresPageCoordinates() {
+      const engine = new DrawingEngine();
+      engine.drawStartScrollX = 120;
+      engine.drawStartScrollY = 80;
+
+      engine.points = [
+        { x: 10, y: 15, scrollX: 120, scrollY: 80, timestamp: 0 },
+        { x: 20, y: 25, scrollX: 120, scrollY: 80, timestamp: 1 },
+        { x: 30, y: 35, scrollX: 120, scrollY: 80, timestamp: 2 }
+      ];
+
+      const result = engine.finishDrawing();
+
+      assert(result !== null, 'finishDrawing should return drawing data');
+      assert(result.points.every(p => p.x >= 130 && p.y >= 95), 'Points should include scroll offsets (page space)');
+      assertEquals(engine.points.length, 0, 'Engine.points should be cleared after finishDrawing');
+      assert(result.svgPath.includes('M'), 'SVG path should be generated from page coordinates');
+    }
+
+    async function testRedrawFromHistoryUsesViewportOffsets() {
+      const engine = new DrawingEngine();
+      engine.canvas = { width: 800, height: 600 };
+
+      const calls = [];
+      engine.ctx = {
+        clearRect() {},
+        beginPath() {},
+        moveTo(x, y) { calls.push({ type: 'move', x, y }); },
+        lineTo(x, y) { calls.push({ type: 'line', x, y }); },
+        stroke() {},
+        set strokeStyle(val) {},
+        get strokeStyle() { return '#000'; },
+        set lineWidth(val) {},
+        get lineWidth() { return 4; },
+        set lineCap(val) {},
+        set lineJoin(val) {}
+      };
+
+      engine.history = [{
+        points: [
+          { x: 400, y: 300 },
+          { x: 450, y: 320 },
+          { x: 500, y: 330 }
+        ],
+        strokeColor: '#000000',
+        strokeWidth: 4
+      }];
+      engine.historyIndex = 0;
+
+      const originalScrollLeft = document.documentElement.scrollLeft;
+      const originalScrollTop = document.documentElement.scrollTop;
+
+      document.documentElement.scrollLeft = 120;
+      document.documentElement.scrollTop = 60;
+
+      engine.redrawFromHistory();
+
+      assert(calls.length > 0, 'redrawFromHistory should issue drawing commands');
+      const firstMove = calls.find(call => call.type === 'move');
+      assert(firstMove, 'Expected moveTo call');
+      assertApproxEquals(firstMove.x, 400 - 120, 0.001, 'moveTo x should subtract scroll offset');
+      assertApproxEquals(firstMove.y, 300 - 60, 0.001, 'moveTo y should subtract scroll offset');
+
+      document.documentElement.scrollLeft = originalScrollLeft;
+      document.documentElement.scrollTop = originalScrollTop;
+    }
+
     async function runAllTests() {
       testResults.length = 0; // Clear previous results
       document.getElementById('summary').style.display = 'none';
@@ -360,6 +427,8 @@
       await runTest('Drawing engine initialization', testDrawingEngineInitialization);
       await runTest('Bounding box calculation', testBoundingBoxCalculation);
       await runTest('Bounding box - empty points', testEmptyBoundingBox);
+      await runTest('Finish drawing stores page-space points', testFinishDrawingStoresPageCoordinates);
+      await runTest('History redraw accounts for scroll', testRedrawFromHistoryUsesViewportOffsets);
 
       console.log('All tests completed!');
     }

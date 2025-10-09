@@ -756,20 +756,7 @@ class DrawModeController {
     this.isActive = true;
 
     // Disable all annotation interactions during draw mode
-    const annotationContainer = document.getElementById('noted-extension-root');
-    if (annotationContainer) {
-      annotationContainer.setAttribute('data-draw-mode', 'true');
-      // Disable pointer events on all child annotations
-      const annotations = annotationContainer.querySelectorAll('.noted-text-annotation, .noted-drawing-container');
-      annotations.forEach(el => {
-        el.style.pointerEvents = 'none';
-      });
-      // Also disable the SVG hit areas specifically (they have inline pointer-events)
-      const hitAreas = annotationContainer.querySelectorAll('.noted-drawing-annotation path[stroke="transparent"]');
-      hitAreas.forEach(hitArea => {
-        hitArea.style.pointerEvents = 'none';
-      });
-    }
+    this.setAnnotationPointerEvents(false);
 
     // Create canvas
     this.canvas = this.drawingEngine.initializeCanvas();
@@ -833,20 +820,7 @@ class DrawModeController {
     }
 
     // Re-enable annotation interactions
-    const annotationContainer = document.getElementById('noted-extension-root');
-    if (annotationContainer) {
-      annotationContainer.removeAttribute('data-draw-mode');
-      // Re-enable pointer events on all child annotations
-      const annotations = annotationContainer.querySelectorAll('.noted-text-annotation, .noted-drawing-container');
-      annotations.forEach(el => {
-        el.style.pointerEvents = '';
-      });
-      // Re-enable the SVG hit areas
-      const hitAreas = annotationContainer.querySelectorAll('.noted-drawing-annotation path[stroke="transparent"]');
-      hitAreas.forEach(hitArea => {
-        hitArea.style.pointerEvents = 'stroke';
-      });
-    }
+    this.setAnnotationPointerEvents(true);
 
     // Remove UI
     this.removeUI();
@@ -1010,6 +984,9 @@ class DrawModeController {
 
     await this.manager.addAnnotation(annotation, false);  // No auto-focus for drawings
     console.log('Noted: Drawing annotation saved and rendered', annotation.id);
+
+    // Ensure newly rendered annotations remain transparent to pointer events during draw mode
+    this.setAnnotationPointerEvents(false);
 
     // Store the annotation ID with the history entry for undo/redo
     const lastHistoryEntry = this.drawingEngine.history[this.drawingEngine.historyIndex];
@@ -1216,6 +1193,27 @@ class DrawModeController {
     // Change cursor on hover
     handle.addEventListener('mouseenter', () => {
       handle.style.cursor = 'grab';
+    });
+  }
+
+  setAnnotationPointerEvents(enable) {
+    const annotationContainer = document.getElementById('noted-extension-root');
+    if (!annotationContainer) return;
+
+    if (enable) {
+      annotationContainer.removeAttribute('data-draw-mode');
+    } else {
+      annotationContainer.setAttribute('data-draw-mode', 'true');
+    }
+
+    const annotations = annotationContainer.querySelectorAll('.noted-text-annotation, .noted-drawing-container');
+    annotations.forEach(el => {
+      el.style.pointerEvents = enable ? '' : 'none';
+    });
+
+    const hitAreas = annotationContainer.querySelectorAll('.noted-drawing-annotation path[stroke="transparent"]');
+    hitAreas.forEach(hitArea => {
+      hitArea.style.pointerEvents = enable ? 'stroke' : 'none';
     });
   }
 
