@@ -4,20 +4,24 @@
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-blue)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![License](https://img.shields.io/badge/license-MIT-orange)](LICENSE)
 
-**Noted** is a Chrome extension that lets you annotate any webpage with persistent text labels and freehand drawings. Perfect for research, design feedback, web development, or just remembering important details on your favorite sites.
+**Noted** is a Chrome extension that lets you annotate any webpage with persistent text labels and freehand drawings. Perfect for research, design feedback, web development, or sharing insights with friends and colleagues.
 
 ![Noted Demo](assets/demo.gif)
 
+---
+
 ## Features
 
-### 🏷️ Text Annotations
+### ✅ Completed (Phases 1-4)
+
+#### 🏷️ Text Annotations
 - **Quick placement** with `Ctrl+Shift+T`
 - Click anywhere on a page to add a text label
 - Drag to move, resize handles to adjust
 - Delete on hover
 - Persists across browser sessions
 
-### ✏️ Freehand Drawing
+#### ✏️ Freehand Drawing
 - **Drawing mode** with `Ctrl+Shift+D`
 - **12-color palette** with easy selection
 - **5 brush sizes** (2px to 12px) displayed as visual circles
@@ -29,16 +33,53 @@
 - Delete individual strokes
 - All drawings saved as crisp SVG vectors
 
-### 💾 Smart Storage
+#### 💾 Smart Storage
 - Annotations saved per URL
 - Automatic cross-tab synchronization
 - Local storage using Chrome Storage API
 - No account required, no tracking
 
-### 🎨 Dashboard
+#### 🎨 Dashboard
 - View all annotations for current page
 - Quick delete with visual confirmation
 - Clear all annotations with safety confirmation
+
+---
+
+### 🔄 In Progress (Phases 5-7)
+
+#### Phase 5: Robust Anchoring System
+- Multi-strategy DOM anchoring (5 strategies with fallback)
+- Machine learning from user corrections
+- Screenshot thumbnail fallback
+- Warning system for page changes
+
+#### Phase 6: SVG Export
+- Export annotations as layered SVG
+- Figma-compatible format
+- Background screenshot + editable annotations
+
+#### Phase 7: Basic Sharing
+- Share annotations via extension-to-extension links
+- Recipients must have extension installed
+- 90-day expiration on shared links
+
+---
+
+### 📋 Planned (Phases 8-12)
+
+**Future enhancements (optional based on user feedback):**
+- Authentication & cloud sync
+- Browser sidebar panel integration
+- Context menu (right-click to annotate)
+- Annotation templates (Bug Report, Design Feedback, Research)
+- Layers system
+- Monetization (optional Pro tier)
+- Comprehensive testing & Chrome Web Store launch
+
+See [project_spec_3_phases8-12.md](project_spec_3_phases8-12.md) for details (to be written after Phase 7).
+
+---
 
 ## Installation
 
@@ -61,7 +102,9 @@
    - Or use keyboard shortcuts: `Ctrl+Shift+T` (text) or `Ctrl+Shift+D` (draw)
 
 ### From Chrome Web Store
-*Coming soon!*
+*Coming soon after Phase 12!*
+
+---
 
 ## Usage
 
@@ -94,6 +137,8 @@
 - **Clear all**: Click "Clear All Annotations" in popup (requires double-click confirmation)
 - **Delete individual**: Hover over annotation and click delete button
 
+---
+
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
@@ -104,11 +149,9 @@
 | `Ctrl+Z` | Undo last stroke (draw mode only) |
 | `ESC` | Exit current mode |
 
-## Architecture
+---
 
-Noted is built with vanilla JavaScript and uses Chrome Extension Manifest V3.
-
-### Project Structure
+## Project Structure
 
 ```
 Noted/
@@ -126,18 +169,31 @@ Noted/
 │   ├── dashboard.html         # Extension popup interface
 │   ├── dashboard.js           # Dashboard logic
 │   └── dashboard.css          # Dashboard styles
-└── utils/
-    ├── hotkey-manager.js      # Keyboard shortcut handling
-    └── storage-helper.js      # Storage utilities
+├── utils/
+│   ├── hotkey-manager.js      # Keyboard shortcut handling
+│   └── storage-helper.js      # Storage utilities
+└── tests/
+    ├── drawing-engine.test.html
+    └── storage-helper.test.html
 ```
 
-### Key Technologies
+---
 
-- **Chrome Extensions API** (Manifest V3)
-- **Chrome Storage API** for persistence
-- **HTML5 Canvas** for drawing
-- **SVG** for vector annotation storage
-- **Vanilla JavaScript** (no frameworks)
+## Documentation Structure
+
+### For Users
+- **README.md** (this file) - Project overview and usage
+- **HANDOFF.md** - Development progress and handoff notes
+
+### For Developers/Agents
+- **agent_instructions.md** - Rules and workflow for AI coding agents
+- **project_spec_1_foundation.md** - Always load (architecture + completed features)
+- **project_spec_2_phases5-7.md** - Load when working on Phases 5-7
+- **project_spec_3_phases8-12.md** - Load when working on Phases 8-12 (to be written)
+
+**Important:** Agents should load specifications based on which phase they're working on. See [agent_instructions.md](agent_instructions.md) for details.
+
+---
 
 ## Development
 
@@ -184,82 +240,133 @@ open tests/drawing-engine.test.html
 
 # Storage helper tests
 open tests/storage-helper.test.html
-
-# Phase 3 control panel manual test
-open tests/phase3-manual-test.html
 ```
+
+---
+
+## Current Status
+
+**Phase 4 Complete** ✅
+- Local annotation system fully functional
+- Text and drawing modes working
+- Basic dashboard implemented
+
+**Phase 5 In Progress** 🔄
+- Robust anchoring system (multi-strategy with ML learning)
+
+See [HANDOFF.md](HANDOFF.md) for latest development status and handoff notes.
+
+---
 
 ## Known Issues
 
-- _None currently tracked._ Recent fixes include the Alt+drag ghost stroke bug and URL normalization to keep annotations after refresh. See [HANDOFF.md](HANDOFF.md) for history and details.
+No critical issues currently. Recent fixes include:
+- ✅ Alt+drag ghost stroke bug resolved
+- ✅ URL normalization for annotation persistence
+- ✅ Window resize drift fixed
+- ✅ Scroll ghosting eliminated
+
+See [HANDOFF.md](HANDOFF.md) for detailed fix history.
+
+---
 
 ## Roadmap
 
+### Completed (Phases 1-4)
 - [x] Text annotation system
 - [x] Freehand drawing system
-- [x] **Stroke color picker (12 colors)**
-- [x] **Stroke width controls (5 sizes)**
-- [x] **Draggable control panel**
-- [x] **Eraser mode with undo support**
-- [x] Persistent storage
-- [x] Dashboard UI
-- [x] Fix Alt+drag canvas copy bug
-- [ ] Eraser tool
-- [ ] Export/import annotations
-- [ ] Cloud sync
-- [ ] Collaborative annotations
-- [ ] Mobile support
+- [x] 12-color palette with 5 brush sizes
+- [x] Draggable control panel
+- [x] Eraser mode with undo support
+- [x] Persistent local storage
+- [x] Basic dashboard UI
 
-See [HANDOFF.md](HANDOFF.md) for detailed roadmap and development notes.
+### In Progress (Phases 5-7)
+- [ ] Multi-strategy anchoring with ML learning
+- [ ] SVG export (Figma-compatible)
+- [ ] Basic sharing (extension-to-extension)
+
+### Planned (Phases 8-12)
+- [ ] Authentication & cloud sync (optional)
+- [ ] Browser sidebar integration
+- [ ] Context menu
+- [ ] Annotation templates
+- [ ] Layers system
+- [ ] Testing & Chrome Web Store launch
+
+See [project_spec_3_phases8-12.md](project_spec_3_phases8-12.md) for future roadmap details.
+
+---
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+This is primarily a personal project, but feedback and suggestions are welcome!
 
-### Guidelines
-
+If you'd like to contribute:
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+3. Follow the coding standards in [agent_instructions.md](agent_instructions.md)
+4. Test your changes thoroughly
+5. Submit a Pull Request
 
-Please ensure your code:
-- Follows existing code style
-- Includes comments for complex logic
-- Doesn't break existing functionality
-- Includes console logging prefixed with "Noted:"
+**Coding Standards:**
+- Vanilla JavaScript (no frameworks)
+- Clean, commented code
+- Descriptive variable names
+- Console logging prefixed with "Noted:"
+
+---
 
 ## Privacy
 
-Noted stores all annotations **locally** on your device using Chrome's Storage API. No data is sent to external servers. No tracking, no analytics, no cloud storage (unless you explicitly enable sync in future versions).
+Noted stores all annotations **locally** on your device using Chrome's Storage API. 
+
+**Current (Phases 1-7):**
+- No data sent to external servers
+- No tracking, no analytics
+- No cloud storage
+- No account required
+
+**Future (Phases 8+, Optional):**
+- Optional cloud sync with authentication (if implemented)
+- Optional sharing features (if implemented)
+- Users will have full control over data sharing
+
+---
 
 ## Browser Compatibility
 
-**Fully Supported**:
+**Fully Supported:**
 - Chrome 88+
 - Microsoft Edge (Chromium-based)
 - Brave Browser
 - Opera
 - Other Chromium-based browsers
 
-**Not Supported**:
+**Not Supported:**
 - Firefox (different extension API)
 - Safari (different extension API)
+
+---
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+---
+
 ## Author
 
-**Justin Pham**
+**Justin Pham**  
 GitHub: [@justinqpham](https://github.com/justinqpham)
+
+---
 
 ## Acknowledgments
 
 - Catmull-Rom spline interpolation for smooth drawing
 - Chrome Extensions documentation and community
+- AI coding assistants (Claude Code, Cursor, GitHub Copilot) for development support
 - All contributors and testers
 
 ---
@@ -267,3 +374,17 @@ GitHub: [@justinqpham](https://github.com/justinqpham)
 **Made with ❤️ for better web annotation**
 
 If you find Noted useful, please ⭐ star this repository!
+
+---
+
+## Multi-Agent Development
+
+This project is developed using multiple AI coding agents across different platforms (Claude Code, Cursor, GitHub Copilot). For developers/agents:
+
+**Important Notes:**
+- Load specifications based on current phase
+- Follow handoff protocol in [agent_instructions.md](agent_instructions.md)
+- Check [HANDOFF.md](HANDOFF.md) for latest development status
+- Document your work before session limits
+
+See [agent_instructions.md](agent_instructions.md) for complete development workflow.
