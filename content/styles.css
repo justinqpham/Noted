@@ -251,6 +251,15 @@
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
 }
 
+.noted-drawing-annotation--no-shadow,
+.noted-drawing-annotation--no-shadow:hover {
+  filter: none;
+}
+
+.noted-drawing-container--no-shadow:hover {
+  filter: none;
+}
+
 /* Drawing Delete Button */
 .noted-drawing-delete-btn:hover {
   background: rgba(255, 59, 48, 1) !important;
@@ -329,6 +338,43 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--panel-size-gap);
+}
+
+.noted-draw-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.noted-draw-toggle-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #3A3A3C;
+}
+
+.noted-draw-toggle-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: #F5F5F7;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.noted-draw-toggle-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.noted-draw-toggle-btn.active {
+  background: var(--primary-bg);
+  color: var(--accent-blue);
+  border-color: rgba(0, 122, 255, 0.35);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.18);
 }
 
 @keyframes slideInLeft {

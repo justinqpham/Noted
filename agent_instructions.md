@@ -1,19 +1,19 @@
 # Agent Instructions - Chrome Annotation Extension
 
-You are building a Chrome Extension for web page annotation based on the attached **PROJECT_SPEC.md**.
+You are building a Chrome Extension for web page annotation based on the attached project specifications.
 
 ---
 
 ## Critical Rules
 
-### 1. PROJECT_SPEC.md is Your Source of Truth
-- Read the entire specification before writing any code
+### 1. Project Specifications are Your Source of Truth
+- Read ALL loaded specification files before writing any code
 - If anything is unclear, ask for clarification - **do not improvise or assume**
 - Do not deviate from the spec without explicit approval from me
 - If you believe something in the spec won't work, explain why and propose an alternative, then wait for approval
 
 ### 2. Work Phase-by-Phase (No Exceptions)
-- Complete ONE phase at a time as defined in PROJECT_SPEC.md
+- Complete ONE phase at a time as defined in the project specs
 - At the end of each phase, **STOP and show me:**
   - What you built
   - Unit test results (if applicable)
@@ -24,12 +24,12 @@ You are building a Chrome Extension for web page annotation based on the attache
 ### 3. Before Writing Any Code
 - State which phase you're working on
 - List exactly what you're about to build
-- Confirm it matches PROJECT_SPEC.md
+- Confirm it matches the project specifications
 - Wait for my go-ahead
 
 ### 4. When You Encounter Problems
 - Tell me immediately - don't try to "fix" it by changing the architecture
-- Reference the specific section of PROJECT_SPEC.md that's problematic
+- Reference the specific section of project specs that's problematic
 - Propose a solution and explain your reasoning
 - Wait for my approval before implementing
 
@@ -42,11 +42,643 @@ You are building a Chrome Extension for web page annotation based on the attache
 - Write clean, commented code
 - Use descriptive variable names
 - Keep functions focused and modular
-- Follow the architecture defined in PROJECT_SPEC.md
+- Follow the architecture defined in project specifications
+
+---
+
+## Loading Project Specifications
+
+### Always Load These Files
+
+**Required for every session:**
+1. `agent_instructions.md` (this file)
+2. `project_spec_1_foundation.md` (architecture + completed phases)
+
+**Load based on current phase:**
+- **Working on Phases 5-7:** Load `project_spec_2_phases5-7.md`
+- **Working on Phases 8-12:** Load `project_spec_3_phases8-12.md`
+
+### Do NOT Load
+
+- Specification files for completed phases (information is in Spec 1 or code)
+- Multiple phase specs simultaneously (only load the spec for phases you're working on)
+
+### Example Session Start
+
+```
+## 📋 Session Starting - Phase 5
+
+**Loaded Files:**
+- agent_instructions.md ✅
+- project_spec_1_foundation.md ✅
+- project_spec_2_phases5-7.md ✅
+
+I've read all specifications. Ready to begin Phase 5: Robust Anchoring System.
+```
+
+---
+
+## Session Limit Management
+
+### Overview
+
+You are working on a project that involves multiple AI coding agents across different platforms. Each platform has different context window capabilities and compression behaviors. **Understanding your platform's limits is essential for smooth handoffs.**
+
+---
+
+### Platform-Specific Context Windows (As of October 2025)
+
+#### Claude Code
+- **Standard Context:** 200K tokens
+- **Beta Extended Context:** 1M tokens (API only, tier 4 customers)
+- **Auto-Compaction:** Triggers at ~80% usage (160K tokens)
+- **Manual Control:** `/compact` command for early compaction
+- **Context Visualization:** `/context` command shows token usage, MCP calls, and memory files
+- **Memory Files:** CLAUDE.md files count toward context window
+
+#### Cursor
+- **Normal Mode:** 128K tokens
+- **Max Mode:** 200K tokens (theoretical)
+- **Practical Reality:** Often 70-120K tokens due to internal truncation for performance/cost
+- **Auto-Summarization:** Automatic when hitting context limit
+- **Manual Control:** `/summarize` command (formerly `/compress`)
+- **Compression Quality:** Users report issues with context loss during auto-compression
+
+#### GitHub Copilot / OpenAI Codex
+- **GitHub Copilot:** Model-dependent (varies by selected model)
+- **OpenAI Codex (codex-1):** 192K tokens
+- **Auto-Management:** Context managed automatically by platform
+- **Agent Mode:** Can run tasks up to 30 minutes in isolated environments
+- **No Manual Control:** No user-accessible compression commands
+
+---
+
+### Platform Detection and Decision Matrix
+
+#### Step 1: Identify Your Platform
+
+Before starting any task, state which platform you're using:
+
+```
+Platform: [Claude Code / Cursor / GitHub Copilot / OpenAI Codex]
+Context Window: [Effective capacity for your platform]
+Current Usage: [If visible via /context or status bar]
+```
+
+#### Step 2: Apply Platform-Specific Strategy
+
+| Platform | Recommended Approach |
+|----------|---------------------|
+| **Claude Code** | Check `/context` every 10-15 interactions. Use `/compact` manually at 60-70% to control what gets preserved. |
+| **Cursor** | Monitor status bar. Expect auto-summarization around 80-90%. Plan for potential context loss - document critical details frequently. |
+| **GitHub Copilot/Codex** | Trust automatic management. Focus on clear task definitions. Use agent mode for long-running tasks. |
+
+---
+
+### Universal Decision Matrix (All Platforms)
+
+#### Before Starting ANY Task
+
+Check remaining capacity and estimate task complexity:
+
+| Effective Tokens Remaining | Task Complexity | Action |
+|----------------------------|-----------------|--------|
+| >80K | Any | ✅ Proceed with task |
+| 40K-80K | Simple | ✅ Proceed with task |
+| 40K-80K | Medium/Complex | ⚠️ Break into smaller steps OR compact/summarize first |
+| <40K | Any | 🛑 Document and handoff NOW |
+
+**Complexity Guidelines:**
+- **Simple:** Single file change, <50 lines of code, no dependencies
+- **Medium:** Multiple file changes, 50-200 lines, some dependencies  
+- **Complex:** Architectural changes, >200 lines, multiple systems affected
+
+**Note:** These thresholds are conservative to account for Cursor's potential truncation and Claude Code's compaction overhead.
+
+---
+
+### Platform-Specific Monitoring
+
+#### Claude Code Monitoring
+
+**Use `/context` command regularly:**
+
+```bash
+# Run every 10-15 interactions
+/context
+```
+
+**What to look for:**
+- Total tokens used vs. available
+- Which segments consume most tokens (conversation, MCP calls, memory files)
+- Proximity to auto-compaction threshold (80%)
+
+**Proactive compaction:**
+```bash
+# Compact when you're at a good stopping point
+/compact focus: "key architectural decisions, open bugs, implementation plan"
+```
+
+**Memory file management:**
+- Keep CLAUDE.md files lean and focused
+- Split large documentation into multiple files by topic
+- Remember: memory files are auto-loaded and count toward context
+
+---
+
+#### Cursor Monitoring
+
+**Status bar indicators:**
+- Install and monitor context usage extensions if available
+- Watch for performance degradation as context grows
+
+**Expect automatic compression:**
+- Auto-summarization triggers around 80-90% usage
+- **Warning:** Compression may lose important context
+- **Workaround:** Maintain your own running summary in comments or a scratch file
+
+**Manual summarization:**
+```bash
+# Use when you want to control timing
+/summarize
+```
+
+**Critical for Cursor users:**
+- Document more frequently due to compression issues
+- Keep critical information in code comments
+- Consider starting new chats more often than other platforms
+
+---
+
+#### GitHub Copilot / Codex Monitoring
+
+**Trust automatic management:**
+- Platform handles context automatically
+- No manual intervention typically needed
+- Focus on clear task descriptions
+
+**For long-running tasks:**
+- Use agent mode in GitHub Copilot
+- Use Codex cloud tasks for multi-step workflows
+- Provide AGENTS.md files for project-specific guidance
+
+**Best practices:**
+- Write clear, specific task descriptions
+- Break very large features into multiple assigned issues
+- Let the agent determine context priorities
+
+---
+
+### Handoff Protocol (All Platforms)
+
+#### When to Handoff
+
+**Claude Code:** 
+- When `/context` shows <40K tokens remaining
+- After auto-compaction if critical context was lost
+- Before starting a complex task with <60K tokens
+
+**Cursor:**
+- When auto-summarization has triggered
+- When you notice context degradation (AI "forgetting" earlier decisions)
+- Before starting a complex task with <50K effective tokens
+
+**GitHub Copilot/Codex:**
+- When a multi-day task needs continuation
+- When switching between significantly different codebases
+- When agent mode tasks complete and new work begins
+
+---
+
+#### Handoff Step 1: Stop All New Work
+
+**Do NOT start:**
+- New features
+- New files
+- New tests  
+- Refactoring
+
+**Only finish:**
+- Current file you're editing (if <50 lines remaining)
+- Current test run (if already started)
+
+---
+
+#### Handoff Step 2: Update HANDOFF.md
+
+Add a new section at the **TOP** of HANDOFF.md:
+
+```markdown
+---
+## 🔄 HANDOFF - [Current Date/Time]
+
+**Platform:** [Claude Code / Cursor / GitHub Copilot / OpenAI Codex]
+**Context Status:** [Approaching limit / Post-compression / Agent task complete]
+**Effective Tokens Remaining:** [If known]
+
+**Phase:** [Phase number and name]
+**Task:** [What you were working on]
+**Status:** [In Progress / Blocked / Needs Testing]
+
+### Context Management Notes
+
+**Platform-Specific Info:**
+- [Claude Code: Last /context output summary]
+- [Cursor: Number of auto-compressions that occurred]
+- [Copilot/Codex: Agent task ID if applicable]
+
+**Critical Context to Preserve:**
+[Key decisions, architectural choices, or implementation details that must survive compression]
+
+### What Was Completed This Session
+
+**Files Created:**
+- `path/to/file.js` - [Brief description of purpose]
+- `path/to/file.css` - [Brief description of purpose]
+
+**Files Modified:**
+- `path/to/file.js` - [What changed and why]
+  - Lines 45-67: Added anchor resolution logic
+  - Lines 120-135: Fixed error handling
+
+**Functions/Classes Added:**
+- `AnchorEngine.resolveAnchor()` - Tries multiple anchor strategies
+- `AnchorLearning.recordCorrection()` - Stores user corrections
+
+**Known Issues/Bugs:**
+- [ ] XPath resolution fails on pages with iframes
+- [ ] Session refresh not tested yet
+
+### What Still Needs to Be Done
+
+**Immediate Next Steps (Priority Order):**
+1. [Specific task with file path]
+   - Expected changes: [What needs to change]
+   - Dependencies: [What must work first]
+   
+2. [Next specific task]
+   - Expected changes: [What needs to change]  
+   - Dependencies: [What must work first]
+
+**Blockers:**
+- [Any issues preventing progress]
+- [Missing information needed]
+- [Decisions that need to be made]
+
+### Testing Status
+
+**Tests Passing:**
+- ✅ `anchor-engine.test.html` - All 12 tests passing
+- ⏳ `auth-manager.test.html` - Not run yet
+
+**Manual Testing Needed:**
+- [ ] Test anchor resolution on Wikipedia
+- [ ] Test session refresh after 50 minutes
+- [ ] Test sign-in flow with Google
+
+### Environment Setup
+
+**Dependencies Installed:**
+- Supabase client v2.38.0
+
+**Configuration Needed:**
+- `.env` file needs `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+- Google OAuth credentials need to be configured
+
+**Chrome Extension Status:**
+- Loaded in developer mode: [Yes/No]
+- Manifest warnings: [List any warnings]
+
+### Code Snippets for Next Agent
+
+**Important context the next agent needs:**
+
+```javascript
+// Example: This function is called by...
+// and expects these parameters...
+// Known issue: Returns null when...
+```
+
+### Platform Transition Notes
+
+**If switching platforms:**
+- [Critical information about platform-specific implementations]
+- [Features that work differently on different platforms]
+- [Workarounds specific to current platform]
+
+### Questions/Decisions Needed
+
+1. [Question that needs user answer]
+2. [Design decision that needs confirmation]
+
+---
+```
+
+---
+
+#### Handoff Step 3: Platform-Specific Handoff Actions
+
+**Claude Code:**
+```bash
+# Before ending session, save current context state
+/context > handoff_context.txt
+
+# Include this output in your handoff notes
+```
+
+**Cursor:**
+```bash
+# Document what was lost in last compression
+# Include critical information that may have been summarized away
+```
+
+**GitHub Copilot/Codex:**
+```bash
+# If using agent mode, save task IDs and PR numbers
+# Note: AGENTS.md files for project guidance
+```
+
+---
+
+#### Handoff Step 4: Final Message to User
+
+```
+## 🔄 [Platform Name] Session Limit Approaching - Handoff Complete
+
+**Platform:** [Claude Code / Cursor / GitHub Copilot / OpenAI Codex]
+**Context Status:** [Details]
+
+**Current Status:**
+- Phase X is [% complete]
+- [Summary of what was accomplished this session]
+
+**For Next Agent:**
+- Start by reading the handoff section at top of HANDOFF.md
+- Platform: Continue using [same platform / can switch to X]
+- Next immediate task: [One sentence description]
+- Estimated completion: [X more sessions / Y hours]
+
+**Critical Info:**
+- [Any must-know context in 1-2 sentences]
+- [Platform-specific notes if relevant]
+
+HANDOFF.md has been updated with complete details for seamless continuation.
+
+**Platform Recommendations:**
+- [Claude Code: Use /context and /compact strategically]
+- [Cursor: Be aware of potential context loss during auto-compression]
+- [Copilot/Codex: Use agent mode for long-running tasks]
+```
+
+---
+
+### Starting a New Session (Reading Handoff)
+
+#### Step 1: Read HANDOFF.md First
+
+**Find the most recent handoff section** (should be at top)
+
+Read in this order:
+1. Platform and Context Status
+2. What Was Completed This Session
+3. What Still Needs to Be Done
+4. Known Issues/Blockers
+5. Testing Status
+
+#### Step 2: Verify Environment
+
+**Check that you can access:**
+- [ ] All files mentioned in handoff
+- [ ] Dependencies are working
+- [ ] Tests can run  
+- [ ] Extension loads without errors
+
+If anything is missing or broken, STOP and ask user before proceeding.
+
+#### Step 3: State Your Platform
+
+**Critical:** Let the user know which platform you're using:
+
+```
+## 📋 Handoff Received - Starting Session
+
+**Platform:** [Claude Code / Cursor / GitHub Copilot / OpenAI Codex]
+**Context Capacity:** [Your effective window size]
+
+I've read the handoff from previous agent. Here's my understanding:
+
+**Previous Progress:**
+- [Summary of what was done]
+
+**Platform Continuity:**
+- Previous agent used: [Platform]  
+- I'm using: [Platform]
+- [Any notes on platform switch if applicable]
+
+**My Next Tasks:**
+1. [First task I'll tackle]
+2. [Second task if time permits]
+
+**Estimated Token Usage:**
+- This task will use approximately [X] tokens
+- Should have [Y] tokens remaining after
+- Will monitor via [/context / status bar / automatic]
+
+**Blockers/Questions:**
+- [List anything unclear or blocking]
+
+Proceeding with: [First specific task]
+```
+
+Wait for user confirmation before starting.
+
+---
+
+### Platform-Specific Best Practices
+
+#### Claude Code Best Practices
+
+**DO:**
+- ✅ Run `/context` every 10-15 interactions
+- ✅ Use `/compact` proactively at 60-70% usage
+- ✅ Keep CLAUDE.md files lean and focused
+- ✅ Monitor MCP call token usage
+- ✅ Use context awareness features (model knows its limits)
+
+**DON'T:**
+- ❌ Wait until 95% to compact (too late)
+- ❌ Put everything in one giant CLAUDE.md file
+- ❌ Ignore `/context` warnings
+- ❌ Run expensive MCP calls repeatedly
+
+---
+
+#### Cursor Best Practices
+
+**DO:**
+- ✅ Document frequently (compression can lose context)
+- ✅ Keep critical info in code comments
+- ✅ Use `/summarize` proactively before major tasks
+- ✅ Consider starting new chats more often
+- ✅ Monitor status bar for context usage
+
+**DON'T:**
+- ❌ Rely on long conversation history
+- ❌ Put critical implementation details only in chat
+- ❌ Assume full 200K is available (often 70-120K)
+- ❌ Ignore performance degradation signals
+
+---
+
+#### GitHub Copilot/Codex Best Practices
+
+**DO:**
+- ✅ Write clear, specific task descriptions
+- ✅ Use AGENTS.md files for project guidance
+- ✅ Use agent mode for multi-step workflows
+- ✅ Break very large features into multiple assigned issues
+- ✅ Trust automatic context management
+
+**DON'T:**
+- ❌ Try to manually manage context (no controls available)
+- ❌ Provide overly vague task descriptions
+- ❌ Forget to configure development environment properly
+- ❌ Assign tasks that are too broad for agent mode
+
+---
+
+### Emergency Handoff (Unexpected Limit)
+
+If you suddenly hit limit without warning:
+
+```markdown
+## 🚨 EMERGENCY HANDOFF - [Timestamp]
+
+**Platform:** [Claude Code / Cursor / GitHub Copilot / OpenAI Codex]
+**What Triggered:** [Auto-compaction / Sudden compression / Session end]
+
+**Last Working File:** `path/to/file.js`
+**Last Working Line:** Approximately line 150  
+**What I Was Doing:** [One sentence]
+
+**Current State:**
+- Code compiles: [Yes/No/Unknown]
+- Tests passing: [Yes/No/Not Run]
+
+**Critical Next Step:**
+[One sentence about what must happen next]
+
+**Incomplete Code:**
+```javascript
+// Paste any half-written code here
+// With comments explaining intent
+```
+
+**Platform Notes:**
+[Any platform-specific context that's critical]
+```
+
+---
+
+### Token Estimation Guide
+
+Rough estimates for common tasks:
+
+| Task | Estimated Tokens | Notes |
+|------|------------------|-------|
+| Create new file (<100 lines) | 3K-5K | Cursor may use more due to context retrieval |
+| Create new file (100-300 lines) | 8K-15K | |
+| Modify existing file (minor) | 2K-4K | |
+| Modify existing file (major) | 6K-12K | |
+| Write unit tests | 4K-8K | |
+| Debug session | 5K-20K | Highly variable; Cursor may truncate history |
+| Design discussion | 3K-10K | |
+| Code review | 4K-8K | |
+| Documentation | 2K-5K | |
+| **Platform overhead:** | | |
+| - Claude Code /context call | 1K-2K | Includes visualization |
+| - Cursor auto-compression | 5K-10K | Compression itself uses tokens |
+| - Copilot agent mode setup | 3K-5K | Initial environment setup |
+
+---
+
+### Cross-Platform Handoffs
+
+**When switching between platforms:**
+
+#### From Claude Code → Cursor
+- Export key context from `/context` output
+- Cursor has smaller effective window - prioritize essentials
+- May need to start fresh conversation sooner
+
+#### From Cursor → Claude Code  
+- Restore any context lost to Cursor compression
+- Take advantage of larger reliable context window
+- Use `/context` to verify full context loaded
+
+#### From Copilot/Codex → Claude Code/Cursor
+- Extract task history from agent mode
+- Document decisions made by autonomous agent
+- May need to explain rationale that agent didn't surface
+
+#### From Claude Code/Cursor → Copilot/Codex
+- Write clear AGENTS.md with project conventions
+- Convert conversation-style context into task descriptions
+- Trust agent to rediscover context through exploration
+
+---
+
+### Platform Feature Matrix
+
+| Feature | Claude Code | Cursor | Copilot/Codex |
+|---------|-------------|--------|---------------|
+| Context Visibility | ✅ `/context` | ⚠️ Limited | ❌ None |
+| Manual Compression | ✅ `/compact` | ✅ `/summarize` | ❌ Auto only |
+| Reliable Window Size | ✅ 200K | ⚠️ 70-120K | ✅ 192K |
+| Memory Files | ✅ CLAUDE.md | ❌ No | ✅ AGENTS.md |
+| Agent Mode | ✅ Built-in | ✅ Available | ✅ Primary mode |
+| Context Awareness | ✅ Model knows limits | ⚠️ Partial | ✅ Automatic |
+| Compression Quality | ✅ High | ⚠️ Issues reported | ✅ Transparent |
+
+---
+
+### Platform Selection Recommendations
+
+#### Use Claude Code When:
+- You need reliable, large context window
+- Task requires deep codebase understanding
+- You want control over context management
+- Working on complex, multi-file refactoring
+
+#### Use Cursor When:
+- You want IDE-integrated experience
+- Working on smaller, focused tasks
+- Speed is priority over context depth
+- Comfortable with more frequent handoffs
+
+#### Use GitHub Copilot/Codex When:
+- You want autonomous agent mode
+- Task is well-defined and self-contained
+- Prefer hands-off context management
+- Working with GitHub-hosted repositories
+
+---
+
+### Critical Reminders
+
+**Your primary responsibility when hitting limits is NOT to finish the task.**
+
+**It's to ensure the NEXT agent can continue seamlessly, regardless of which platform they're using.**
+
+A well-documented 50% complete feature is infinitely better than a 90% complete feature with no documentation about what's left, why certain decisions were made, or which platform constraints were encountered.
+
+**Remember: Check your platform's context status before every significant task. Document frequently. Handoff proactively.**
 
 ---
 
 ## Required Response Format
+
+[Rest of your existing agent_instructions content continues here...]
 
 ### When Starting a Phase
 
@@ -83,8 +715,8 @@ Use this format:
 - [File/component 2] - [brief description]
 
 **Unit Tests:**
-- ✓ [Test 1 name] - PASSED
-- ✓ [Test 2 name] - PASSED
+- ✅ [Test 1 name] - PASSED
+- ✅ [Test 2 name] - PASSED
 - [Or] N/A - No unit tests required for this phase
 
 **Manual Testing Checklist:**
@@ -106,90 +738,6 @@ Please test the above checklist and confirm before I move to Phase [X+1].
 
 ---
 
-## Phase Completion Criteria
-
-Each phase must pass these checks before moving forward:
-
-### Phase 1: Core Infrastructure
-- [ ] Unit tests for storage helper functions pass
-- [ ] Extension loads without errors in chrome://extensions
-- [ ] Manual test: Dashboard popup opens when clicking extension icon
-- [ ] Manual test: Hotkeys log messages to console
-
-### Phase 2: Text Annotations
-- [ ] Manual test: Works on Wikipedia, Reddit, and Gmail
-- [ ] Refresh test: Annotations persist after page reload
-- [ ] Window resize test: Annotations scale proportionally (50% to 200% zoom)
-- [ ] Manual test: Can drag and resize annotations smoothly
-
-### Phase 3: Drawing System
-- [ ] Unit test: Catmull-Rom interpolation produces smooth curves
-- [ ] Unit test: SVG path conversion works correctly
-- [ ] Manual test: Drawing feels smooth with no lag (60fps)
-- [ ] Manual test: Can change colors and brush sizes
-- [ ] Manual test: Undo/redo functionality works
-- [ ] Manual test: Can move completed drawings
-
-### Phase 4: Advanced Anchoring
-- [ ] Unit test: XPath generation for various DOM structures
-- [ ] Manual test: Annotation survives page refresh on dynamic site (Twitter/Reddit)
-- [ ] Manual test: Content change warning appears when page content changes
-- [ ] Manual test: Infinite scroll warning appears on Twitter feed (but NOT on individual tweet)
-- [ ] Manual test: Proportional scaling works when resizing window
-
-### Phase 5: Dashboard
-- [ ] Manual test: All 4 tabs render correctly (Current Page, All Annotations, Collections, Settings)
-- [ ] Manual test: Search/filter/sort works on Current Page tab
-- [ ] Manual test: Clicking annotation scrolls to it on page
-- [ ] Manual test: Clicking annotation on closed URL opens new tab
-- [ ] Manual test: Collections can be created, edited, deleted
-- [ ] Manual test: Settings toggles work
-
-### Phase 6: Polish & Sync
-- [ ] Manual test: Real-time sync between tabs (create annotation in Tab A, appears in Tab B)
-- [ ] Manual test: Edit modal works for both text and drawing annotations
-- [ ] Manual test: Tags can be added and used for filtering
-- [ ] Manual test: Tab close behavior works (confirmation dialog or auto-save based on settings)
-- [ ] Manual test: Export/import annotations works
-
-### Phase 7: Testing & Refinement
-- [ ] Cross-website testing complete (static sites, dynamic sites, complex sites)
-- [ ] Performance testing: No lag with 50+ annotations on page
-- [ ] Storage testing: Limits enforced correctly
-- [ ] Edge case testing: Z-index conflicts, zoom levels, very long pages
-- [ ] Bug fixes completed
-- [ ] Final polish complete
-
----
-
-## Manual Testing Protocol
-
-Test each major phase on these websites:
-
-**Static Sites:**
-- Wikipedia
-- Mozilla Developer Network (MDN)
-
-**Dynamic Sites:**
-- Twitter/X (feed and individual posts)
-- Reddit (feed and individual posts)
-
-**Complex Sites:**
-- Gmail
-- YouTube
-
-**News Sites:**
-- CNN
-- New York Times
-
-**Standard Test Scenarios:**
-1. Create annotation → Refresh page
-2. Create annotation → Resize window (50%, 100%, 150%, 200%)
-3. Create annotation → Navigate away → Navigate back
-4. Create annotation in Tab A → Open same URL in Tab B (test sync)
-
----
-
 ## When Tests Fail
 
 If any test fails:
@@ -204,27 +752,13 @@ If any test fails:
 
 ---
 
-## Your First Task
-
-Before writing any code:
-
-1. **Read PROJECT_SPEC.md completely** from start to finish
-2. **Summarize your understanding** of the project in 3-4 sentences
-3. **State the scope of Phase 1** and what success looks like
-4. **Ask any clarifying questions** you have
-5. **Wait for my explicit "go ahead" approval** before writing code
-
-Do not start coding until I confirm.
-
----
-
 ## Communication Guidelines
 
 **DO:**
 - Ask questions when unclear
 - Explain your reasoning
 - Flag potential issues early
-- Reference specific sections of PROJECT_SPEC.md
+- Reference specific sections of project specs
 - Show your work (code, test results, etc.)
 
 **DON'T:**
@@ -236,37 +770,6 @@ Do not start coding until I confirm.
 
 ---
 
-## Debugging Protocol
-
-When you encounter a bug:
-
-```
-## Bug Report
-
-**Phase:** [Current phase]
-**Issue:** [Clear description of what's not working]
-**Expected Behavior:** [What should happen according to spec]
-**Actual Behavior:** [What's actually happening]
-**Relevant Code:** [Snippet or file reference]
-**Proposed Fix:** [Your suggested solution]
-
-Should I proceed with this fix?
-```
-
----
-
-## When Context is Lost
-
-If we start a new conversation and you've lost context:
-
-1. I will tell you which phase we're on
-2. I will tell you what's been completed
-3. I will re-attach PROJECT_SPEC.md
-4. You will summarize your understanding of where we are
-5. You will confirm the next task before proceeding
-
----
-
 ## Final Reminder
 
 **Your job is to BUILD what's in the spec, not REDESIGN the project.**
@@ -274,19 +777,6 @@ If we start a new conversation and you've lost context:
 If you think something should be done differently, that's fine - but discuss it with me first. The spec represents careful architectural decisions, not random choices.
 
 **Question to ask yourself constantly:**
-*"Does what I'm about to do match PROJECT_SPEC.md?"*
+*"Does what I'm about to do match the project specifications?"*
 
 If the answer is "no" or "I'm not sure", stop and ask me.
-
----
-
-## Ready to Begin?
-
-Confirm you've read and understood these instructions, then:
-1. Read PROJECT_SPEC.md
-2. Summarize the project
-3. State Phase 1 scope
-4. Ask questions
-5. Wait for approval
-
-Let's build something great.

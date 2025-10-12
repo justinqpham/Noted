@@ -23,6 +23,11 @@ class DrawingAnnotation {
     svg.setAttribute('class', 'noted-drawing-annotation');
     svg.dataset.annotationId = this.annotation.id;
 
+    const shadowEnabled = this.annotation.content.shadowEnabled !== false;
+    if (!shadowEnabled) {
+      svg.classList.add('noted-drawing-annotation--no-shadow');
+    }
+
     // Calculate bounding box from points
     const bbox = this.calculateBoundingBox(this.annotation.content.points);
 
@@ -114,6 +119,10 @@ class DrawingAnnotation {
     container.style.top = `${this.annotation.position.y}px`;
     container.style.pointerEvents = 'none';
     container.style.zIndex = '2147483646';
+
+    if (!shadowEnabled) {
+      container.classList.add('noted-drawing-container--no-shadow');
+    }
 
     container.appendChild(svg);
     container.appendChild(deleteBtn);
@@ -390,6 +399,7 @@ class DrawingEngine {
     this.isDrawing = false;
     this.strokeColor = '#FFF4CC';  // Default yellow
     this.strokeWidth = 4;
+    this.shadowEnabled = true;
     this.canvas = null;
     this.ctx = null;
     this.drawPending = false;
@@ -574,7 +584,8 @@ class DrawingEngine {
       points: pagePoints,
       svgPath,
       strokeColor: this.strokeColor,
-      strokeWidth: this.strokeWidth
+      strokeWidth: this.strokeWidth,
+      shadowEnabled: this.shadowEnabled
     });
     this.historyIndex = this.history.length - 1;
     this.historyDirty = true;
@@ -583,7 +594,8 @@ class DrawingEngine {
       points: pagePoints,
       svgPath,
       strokeColor: this.strokeColor,
-      strokeWidth: this.strokeWidth
+      strokeWidth: this.strokeWidth,
+      shadowEnabled: this.shadowEnabled
     };
 
     // Clear points for next drawing
@@ -788,6 +800,7 @@ class DrawModeController {
     this.sizeCircles = null;
     this.sectionLabels = null;
     this.panelSections = null;
+    this.shadowToggleButton = null;
     this.panelAspectRatio = 1.35;
     this.tool = 'draw';
     this.isErasing = false;
@@ -1044,7 +1057,8 @@ class DrawModeController {
         svgPath: drawingData.svgPath,
         strokeColor: drawingData.strokeColor,
         strokeWidth: drawingData.strokeWidth,
-        points: drawingData.points
+        points: drawingData.points,
+        shadowEnabled: drawingData.shadowEnabled
       },
       createdAt: Date.now(),
       modifiedAt: Date.now()
@@ -1214,6 +1228,51 @@ class DrawModeController {
     brushSection.appendChild(sizeContainer);
     this.controlPanel.appendChild(brushSection);
 
+    // Add effects section divider
+    const effectsDivider = document.createElement('div');
+    effectsDivider.className = 'noted-draw-divider';
+    this.controlPanel.appendChild(effectsDivider);
+
+    // Stroke shadow toggle section
+    const effectsSection = document.createElement('div');
+    effectsSection.className = 'noted-draw-section';
+
+    const effectsLabel = document.createElement('div');
+    effectsLabel.className = 'noted-draw-ui-label';
+    effectsLabel.textContent = 'Effects:';
+    effectsSection.appendChild(effectsLabel);
+
+    const shadowRow = document.createElement('div');
+    shadowRow.className = 'noted-draw-toggle-row';
+
+    const shadowTitle = document.createElement('span');
+    shadowTitle.className = 'noted-draw-toggle-title';
+    shadowTitle.textContent = 'Stroke Shadow';
+    shadowRow.appendChild(shadowTitle);
+
+    const shadowToggleBtn = document.createElement('button');
+    shadowToggleBtn.type = 'button';
+    shadowToggleBtn.className = 'noted-draw-toggle-btn';
+    shadowRow.appendChild(shadowToggleBtn);
+
+    const updateShadowToggle = () => {
+      const isEnabled = this.drawingEngine.shadowEnabled;
+      shadowToggleBtn.classList.toggle('active', isEnabled);
+      shadowToggleBtn.textContent = isEnabled ? 'On' : 'Off';
+      shadowToggleBtn.setAttribute('aria-pressed', isEnabled ? 'true' : 'false');
+      shadowToggleBtn.title = isEnabled ? 'Turn stroke shadow off' : 'Turn stroke shadow on';
+    };
+
+    shadowToggleBtn.addEventListener('click', () => {
+      this.drawingEngine.shadowEnabled = !this.drawingEngine.shadowEnabled;
+      updateShadowToggle();
+    });
+
+    updateShadowToggle();
+
+    effectsSection.appendChild(shadowRow);
+    this.controlPanel.appendChild(effectsSection);
+
     // Resize handle
     const resizeHandle = document.createElement('div');
     resizeHandle.className = 'noted-draw-resize-handle';
@@ -1229,6 +1288,7 @@ class DrawModeController {
     this.sizeCircles = Array.from(sizeContainer.querySelectorAll('.noted-draw-size-circle'));
     this.sectionLabels = Array.from(this.controlPanel.querySelectorAll('.noted-draw-ui-label'));
     this.panelSections = Array.from(this.controlPanel.querySelectorAll('.noted-draw-section'));
+    this.shadowToggleButton = shadowToggleBtn;
 
     // Make panel draggable and resizable
     this.makePanelDraggable(dragHandle);
