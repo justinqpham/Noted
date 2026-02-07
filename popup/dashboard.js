@@ -188,10 +188,10 @@ function initializeActionButtons() {
     console.log('Noted: Text mode button clicked');
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      await chrome.tabs.sendMessage(tab.id, { type: 'ACTIVATE_TEXT_MODE' });
+      await chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_TEXT_MODE' });
       window.close(); // Close popup after activation
     } catch (error) {
-      console.error('Noted: Error activating text mode:', error);
+      console.error('Noted: Error toggling text mode:', error);
     }
   });
 
@@ -201,10 +201,10 @@ function initializeActionButtons() {
     console.log('Noted: Draw mode button clicked');
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      await chrome.tabs.sendMessage(tab.id, { type: 'ACTIVATE_DRAW_MODE' });
+      await chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_DRAW_MODE' });
       window.close(); // Close popup after activation
     } catch (error) {
-      console.error('Noted: Error activating draw mode:', error);
+      console.error('Noted: Error toggling draw mode:', error);
     }
   });
 

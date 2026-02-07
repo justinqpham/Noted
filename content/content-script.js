@@ -8,6 +8,8 @@ let isInitialized = false;
 let annotationManager = null;
 let textModeController = null;
 let drawModeController = null;
+let lastToggleTimestamp = 0;
+const TOGGLE_DEBOUNCE_MS = 300;
 
 /**
  * Initialize content script
@@ -36,11 +38,13 @@ function initialize() {
 
     switch (message.type) {
       case 'ACTIVATE_TEXT_MODE':
+      case 'TOGGLE_TEXT_MODE':
         handleTextMode();
         sendResponse({ success: true });
         break;
 
       case 'ACTIVATE_DRAW_MODE':
+      case 'TOGGLE_DRAW_MODE':
         handleDrawMode();
         sendResponse({ success: true });
         break;
@@ -63,26 +67,52 @@ function initialize() {
 }
 
 /**
- * Handle text annotation mode activation
+ * Handle text annotation mode toggle (activate if off, deactivate if on).
+ * Debounced to prevent double-firing from Chrome commands API + HotkeyManager.
  */
 function handleTextMode() {
-  console.log('Noted: Text Mode Activated');
+  const now = Date.now();
+  if (now - lastToggleTimestamp < TOGGLE_DEBOUNCE_MS) return;
+  lastToggleTimestamp = now;
 
   if (textModeController) {
-    textModeController.activate();
+    if (textModeController.isActive) {
+      console.log('Noted: Text Mode Deactivated');
+      textModeController.deactivate();
+    } else {
+      // Deactivate draw mode if active
+      if (drawModeController && drawModeController.isActive) {
+        drawModeController.deactivate();
+      }
+      console.log('Noted: Text Mode Activated');
+      textModeController.activate();
+    }
   } else {
     console.error('Noted: TextModeController not initialized');
   }
 }
 
 /**
- * Handle drawing annotation mode activation
+ * Handle drawing annotation mode toggle (activate if off, deactivate if on).
+ * Debounced to prevent double-firing from Chrome commands API + HotkeyManager.
  */
 function handleDrawMode() {
-  console.log('Noted: Draw Mode Activated');
+  const now = Date.now();
+  if (now - lastToggleTimestamp < TOGGLE_DEBOUNCE_MS) return;
+  lastToggleTimestamp = now;
 
   if (drawModeController) {
-    drawModeController.activate();
+    if (drawModeController.isActive) {
+      console.log('Noted: Draw Mode Deactivated');
+      drawModeController.deactivate();
+    } else {
+      // Deactivate text mode if active
+      if (textModeController && textModeController.isActive) {
+        textModeController.deactivate();
+      }
+      console.log('Noted: Draw Mode Activated');
+      drawModeController.activate();
+    }
   } else {
     console.error('Noted: DrawModeController not initialized');
   }
@@ -98,53 +128,6 @@ function handleAnnotationsUpdated(annotations) {
   if (annotationManager) {
     annotationManager.loadAnnotations();
   }
-}
-
-/**
- * Show temporary notification for mode activation (Phase 1 only)
- * Will be replaced with actual UI in later phases
- */
-function showModeNotification(message, icon) {
-  // Create notification element
-  const notification = document.createElement('div');
-  notification.textContent = `${icon} ${message}`;
-  notification.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: rgba(0, 0, 0, 0.9);
-    color: white;
-    padding: 12px 20px;
-    border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
-    font-size: 14px;
-    font-weight: 500;
-    z-index: 2147483647;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    animation: fadeInOut 2s ease;
-    pointer-events: none;
-  `;
-
-  // Add animation styles
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes fadeInOut {
-      0% { opacity: 0; transform: translateY(-10px); }
-      10% { opacity: 1; transform: translateY(0); }
-      90% { opacity: 1; transform: translateY(0); }
-      100% { opacity: 0; transform: translateY(-10px); }
-    }
-  `;
-  document.head.appendChild(style);
-
-  // Add to page
-  document.body.appendChild(notification);
-
-  // Remove after animation
-  setTimeout(() => {
-    notification.remove();
-    style.remove();
-  }, 2000);
 }
 
 /**

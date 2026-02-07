@@ -833,7 +833,7 @@ class DrawModeController {
 
     // Create canvas
     this.canvas = this.drawingEngine.initializeCanvas();
-    document.body.appendChild(this.canvas);
+    document.documentElement.appendChild(this.canvas);
 
     // Show UI
     this.showControlPanel();
@@ -1278,8 +1278,8 @@ class DrawModeController {
     resizeHandle.className = 'noted-draw-resize-handle';
     this.controlPanel.appendChild(resizeHandle);
 
-    // Add to document
-    document.body.appendChild(this.controlPanel);
+    // Add to document (same level as extension root for proper z-index)
+    document.documentElement.appendChild(this.controlPanel);
 
     this.colorContainer = colorContainer;
     this.sizeContainer = sizeContainer;
@@ -1582,7 +1582,7 @@ class DrawModeController {
     const instruction = document.createElement('div');
     instruction.className = 'noted-instruction';
     instruction.textContent = 'Draw on the page • Alt+drag to move strokes • Ctrl+Z to undo • ESC to finish';
-    document.body.appendChild(instruction);
+    document.documentElement.appendChild(instruction);
   }
 
   /**
@@ -1620,6 +1620,36 @@ class DrawModeController {
       this.keyupHandler = null;
     }
   }
+}
+
+/**
+ * Compute minimum distance between two line segments (A-B) and (C-D).
+ * Used by eraser to detect intersection with strokes.
+ */
+function distanceBetweenSegments(a, b, c, d) {
+  function dot(u, v) { return u.x * v.x + u.y * v.y; }
+  function sub(u, v) { return { x: u.x - v.x, y: u.y - v.y }; }
+  function len2(v) { return v.x * v.x + v.y * v.y; }
+
+  function pointSegmentDist2(p, s0, s1) {
+    const v = sub(s1, s0);
+    const w = sub(p, s0);
+    const c1 = dot(w, v);
+    if (c1 <= 0) return len2(sub(p, s0));
+    const c2 = dot(v, v);
+    if (c2 <= c1) return len2(sub(p, s1));
+    const t = c1 / c2;
+    const proj = { x: s0.x + t * v.x, y: s0.y + t * v.y };
+    return len2(sub(p, proj));
+  }
+
+  // Check all four point-to-segment distances and return the minimum
+  const d1 = pointSegmentDist2(a, c, d);
+  const d2 = pointSegmentDist2(b, c, d);
+  const d3 = pointSegmentDist2(c, a, b);
+  const d4 = pointSegmentDist2(d, a, b);
+
+  return Math.sqrt(Math.min(d1, d2, d3, d4));
 }
 
 // Make available globally

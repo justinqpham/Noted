@@ -37,9 +37,9 @@ chrome.commands.onCommand.addListener((command) => {
   console.log('Noted: Command received:', command);
 
   if (command === 'activate-text-mode') {
-    notifyActiveTab({ type: 'ACTIVATE_TEXT_MODE' });
+    notifyActiveTab({ type: 'TOGGLE_TEXT_MODE' });
   } else if (command === 'activate-draw-mode') {
-    notifyActiveTab({ type: 'ACTIVATE_DRAW_MODE' });
+    notifyActiveTab({ type: 'TOGGLE_DRAW_MODE' });
   }
 });
 
@@ -49,11 +49,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   switch (message.type) {
     case 'ACTIVATE_TEXT_MODE':
-      notifyActiveTab({ type: 'ACTIVATE_TEXT_MODE' });
+    case 'TOGGLE_TEXT_MODE':
+      notifyActiveTab({ type: 'TOGGLE_TEXT_MODE' });
       break;
 
     case 'ACTIVATE_DRAW_MODE':
-      notifyActiveTab({ type: 'ACTIVATE_DRAW_MODE' });
+    case 'TOGGLE_DRAW_MODE':
+      notifyActiveTab({ type: 'TOGGLE_DRAW_MODE' });
       break;
 
     case 'SAVE_ANNOTATION':

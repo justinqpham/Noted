@@ -109,28 +109,38 @@ class HotkeyManager {
    * Trigger text annotation mode
    */
   triggerTextMode() {
-    console.log('Noted: Text Mode Activated (Ctrl+Shift+T)');
+    console.log('Noted: Text Mode toggled (Ctrl+Shift+T)');
 
-    // Send message to background script
-    chrome.runtime.sendMessage({
-      type: 'ACTIVATE_TEXT_MODE'
-    }).catch(error => {
-      console.error('Noted: Error sending text mode message:', error);
-    });
+    // Call content script handler directly (same execution context)
+    if (typeof handleTextMode === 'function') {
+      handleTextMode();
+    } else {
+      // Fallback to message passing if handler not yet available
+      chrome.runtime.sendMessage({
+        type: 'TOGGLE_TEXT_MODE'
+      }).catch(error => {
+        console.error('Noted: Error sending text mode message:', error);
+      });
+    }
   }
 
   /**
    * Trigger drawing annotation mode
    */
   triggerDrawMode() {
-    console.log('Noted: Draw Mode Activated (Ctrl+Shift+D)');
+    console.log('Noted: Draw Mode toggled (Ctrl+Shift+D)');
 
-    // Send message to background script
-    chrome.runtime.sendMessage({
-      type: 'ACTIVATE_DRAW_MODE'
-    }).catch(error => {
-      console.error('Noted: Error sending draw mode message:', error);
-    });
+    // Call content script handler directly (same execution context)
+    if (typeof handleDrawMode === 'function') {
+      handleDrawMode();
+    } else {
+      // Fallback to message passing if handler not yet available
+      chrome.runtime.sendMessage({
+        type: 'TOGGLE_DRAW_MODE'
+      }).catch(error => {
+        console.error('Noted: Error sending draw mode message:', error);
+      });
+    }
   }
 
   /**
