@@ -34,6 +34,7 @@
         "content/annotation-manager.js",
         "content/text-engine.js",
         "content/drawing-engine.js",
+        "content/export-engine.js",
         "content/content-script.js"
       ],
       "css": ["content/styles.css"],

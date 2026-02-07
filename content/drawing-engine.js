@@ -1019,8 +1019,8 @@ class DrawModeController {
     const topLeftViewportX = topLeftPageX - scrollX;
     const topLeftViewportY = topLeftPageY - scrollY;
 
-    // Generate anchor data for robust positioning
-    const anchor = AnchorEngine.generateAnchor(
+    // Generate anchor data with confidence scoring (Phase 5)
+    const anchor = AnchorEngine.generateAnchorWithConfidence(
       topLeftViewportX,
       topLeftViewportY,
       this.manager.viewportWidth,

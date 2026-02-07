@@ -304,6 +304,13 @@ class TextAnnotation {
 
         if (deltaX !== 0 || deltaY !== 0) {
           if (this.annotation.anchor) {
+            // Phase 5: Record correction for calibration
+            AnchorEngine.recordCorrection(
+              this.annotation.anchor,
+              { x: this.dragOriginX, y: this.dragOriginY },
+              { x: this.annotation.position.x, y: this.annotation.position.y }
+            );
+
             this.annotation.anchor.strategy = 'page';
 
             if (typeof this.annotation.anchor.pageX === 'number' &&
@@ -481,8 +488,8 @@ class TextModeController {
    * @param {number} y - Y coordinate
    */
   createAnnotationAt(x, y) {
-    // Generate anchor data for robust positioning
-    const anchor = AnchorEngine.generateAnchor(
+    // Generate anchor data with confidence scores (Phase 5)
+    const anchor = AnchorEngine.generateAnchorWithConfidence(
       x,
       y,
       this.manager.viewportWidth,
@@ -501,7 +508,7 @@ class TextModeController {
       type: 'text',
       url: this.manager.currentURL,
 
-      // Anchoring data (Phase 4)
+      // Anchoring data (Phase 5: confidence-scored)
       anchor: anchor,
       pageFingerprint: pageFingerprint,
 
@@ -520,6 +527,14 @@ class TextModeController {
       createdAt: Date.now(),
       modifiedAt: Date.now()
     };
+
+    // Capture thumbnail asynchronously (Phase 5) - don't block annotation creation
+    this.manager.captureThumbnail(annotation.position).then(thumbnail => {
+      if (thumbnail && annotation.anchor) {
+        annotation.anchor.thumbnail = thumbnail;
+        this.manager.saveAnnotation(annotation);
+      }
+    });
 
     this.manager.addAnnotation(annotation);
     this.deactivate();

@@ -666,3 +666,130 @@
 .noted-modal-btn-secondary:hover {
   background: #E8E8ED;
 }
+
+/* Phase 5: Anchor Warning Banner (enhanced) */
+.noted-anchor-warning {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483650;
+  background: linear-gradient(135deg, #FFF3CD 0%, #FFE69C 100%);
+  border: 2px solid #FF9800;
+  border-radius: 12px;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  animation: slideDown 0.3s ease;
+  max-width: 600px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+  pointer-events: auto;
+}
+
+.noted-warning-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.noted-warning-action-btn {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #007AFF;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.noted-warning-action-btn:hover {
+  background: #007AFF;
+  color: white;
+  border-color: #007AFF;
+}
+
+/* Phase 5: Thumbnail Overlay */
+.noted-thumbnail-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2147483651;
+  animation: fadeIn 0.2s ease;
+  pointer-events: auto;
+}
+
+.noted-thumbnail-content {
+  text-align: center;
+  max-width: 400px;
+}
+
+/* Phase 7: Shared Annotations Banner */
+.noted-shared-banner {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483650;
+  background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
+  border: 2px solid #2196F3;
+  border-radius: 12px;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  animation: slideDown 0.3s ease;
+  max-width: 600px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+  pointer-events: auto;
+}
+
+.noted-shared-label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1565C0;
+}
+
+.noted-shared-action-btn {
+  background: #2196F3;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.noted-shared-action-btn:hover {
+  background: #1976D2;
+  transform: translateY(-1px);
+}
+
+.noted-shared-dismiss-btn {
+  background: rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1565C0;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.noted-shared-dismiss-btn:hover {
+  background: rgba(0, 0, 0, 0.2);
+}

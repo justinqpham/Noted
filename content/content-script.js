@@ -54,6 +54,17 @@ function initialize() {
         sendResponse({ success: true });
         break;
 
+      // Phase 6: SVG Export
+      case 'EXPORT_SVG':
+        handleExportSVG();
+        sendResponse({ success: true });
+        break;
+
+      // Phase 7: Share link generation
+      case 'GENERATE_SHARE_LINK':
+        handleGenerateShareLink(sendResponse);
+        return true; // async response
+
       default:
         console.warn('Noted: Unknown message type:', message.type);
         sendResponse({ success: false, error: 'Unknown message type' });
@@ -64,6 +75,9 @@ function initialize() {
 
   isInitialized = true;
   console.log('Noted: Content script initialized successfully');
+
+  // Phase 7: Check for share link after initialization
+  checkForShareLink();
 }
 
 /**
@@ -151,6 +165,166 @@ if (document.readyState === 'loading') {
 } else {
   initialize();
   verifyExtension();
+}
+
+// ========================================================
+// Phase 6: SVG Export Handler
+// ========================================================
+
+/**
+ * Handle SVG export request from popup
+ */
+async function handleExportSVG() {
+  if (!annotationManager) return;
+
+  const annotations = annotationManager.getAnnotationsForCurrentPage();
+  if (annotations.length === 0) {
+    console.log('Noted: No annotations to export');
+    return;
+  }
+
+  try {
+    const svgBlob = await exportEngine.exportToSVG(annotations, { format: 'blob' });
+
+    const url = URL.createObjectURL(svgBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `noted-${window.location.hostname}-${Date.now()}.svg`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    console.log('Noted: SVG exported successfully');
+  } catch (error) {
+    console.error('Noted: SVG export failed:', error);
+  }
+}
+
+// ========================================================
+// Phase 7: Share Link Generation & Receiver
+// ========================================================
+
+/**
+ * Generate a share link for current page annotations
+ */
+async function handleGenerateShareLink(sendResponse) {
+  if (!annotationManager) {
+    sendResponse({ shareUrl: null });
+    return;
+  }
+
+  const annotations = annotationManager.getAnnotationsForCurrentPage();
+  if (annotations.length === 0) {
+    sendResponse({ shareUrl: null });
+    return;
+  }
+
+  try {
+    const shareId = crypto.randomUUID().slice(0, 12);
+
+    // Strip thumbnails to reduce storage size
+    const lightAnnotations = annotations.map(a => {
+      const copy = JSON.parse(JSON.stringify(a));
+      if (copy.anchor) delete copy.anchor.thumbnail;
+      return copy;
+    });
+
+    const shareData = {
+      url: window.location.href,
+      annotations: lightAnnotations,
+      created: Date.now(),
+      expires: Date.now() + (90 * 24 * 60 * 60 * 1000) // 90 days
+    };
+
+    await chrome.storage.local.set({
+      [`noted-share-${shareId}`]: shareData
+    });
+
+    const baseUrl = window.location.href.split('#')[0];
+    const shareUrl = `${baseUrl}#noted-share:${shareId}`;
+
+    console.log('Noted: Share link generated:', shareUrl);
+    sendResponse({ shareUrl });
+  } catch (error) {
+    console.error('Noted: Share link generation failed:', error);
+    sendResponse({ shareUrl: null });
+  }
+}
+
+/**
+ * Check for share link on page load
+ */
+function checkForShareLink() {
+  const hash = window.location.hash;
+  if (!hash.startsWith('#noted-share:')) return;
+
+  const shareId = hash.slice('#noted-share:'.length);
+  if (!shareId) return;
+
+  console.log('Noted: Detected share link, loading shared annotations');
+  loadSharedAnnotations(shareId);
+}
+
+async function loadSharedAnnotations(shareId) {
+  try {
+    const key = `noted-share-${shareId}`;
+    const result = await chrome.storage.local.get([key]);
+    const shareData = result[key];
+
+    if (!shareData) {
+      console.log('Noted: Share data not found');
+      return;
+    }
+
+    if (shareData.expires && Date.now() > shareData.expires) {
+      console.log('Noted: Share link expired');
+      await chrome.storage.local.remove([key]);
+      return;
+    }
+
+    showSharedBanner(shareData);
+
+    if (annotationManager) {
+      shareData.annotations.forEach(annotation => {
+        annotationManager.renderAnnotation(annotation);
+      });
+    }
+  } catch (error) {
+    console.error('Noted: Failed to load shared annotations:', error);
+  }
+}
+
+function showSharedBanner(shareData) {
+  const banner = document.createElement('div');
+  banner.className = 'noted-shared-banner';
+
+  const label = document.createElement('span');
+  label.className = 'noted-shared-label';
+  label.textContent = 'Viewing shared annotations';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'noted-shared-action-btn';
+  saveBtn.textContent = 'Save to My Annotations';
+  saveBtn.addEventListener('click', async () => {
+    if (!annotationManager) return;
+    for (const annotation of shareData.annotations) {
+      annotation.id = crypto.randomUUID();
+      await annotationManager.saveAnnotation(annotation);
+    }
+    annotationManager.loadAnnotations();
+    banner.remove();
+  });
+
+  const dismissBtn = document.createElement('button');
+  dismissBtn.className = 'noted-shared-dismiss-btn';
+  dismissBtn.textContent = 'Dismiss';
+  dismissBtn.addEventListener('click', () => banner.remove());
+
+  banner.appendChild(label);
+  banner.appendChild(saveBtn);
+  banner.appendChild(dismissBtn);
+  document.body.insertBefore(banner, document.body.firstChild);
 }
 
 // Export for testing

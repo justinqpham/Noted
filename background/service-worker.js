@@ -66,6 +66,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       handleGetAnnotations(message.url, sendResponse);
       return true; // Will respond asynchronously
 
+    // Phase 5: Thumbnail capture
+    case 'CAPTURE_THUMBNAIL':
+      handleCaptureThumbnail(sendResponse);
+      return true;
+
+    // Phase 6: Screenshot capture for SVG export
+    case 'CAPTURE_SCREENSHOT':
+      handleCaptureScreenshot(message, sendResponse);
+      return true;
+
     default:
       console.warn('Noted: Unknown message type:', message.type);
   }
@@ -122,6 +132,35 @@ async function handleSaveAnnotation(annotation, sendResponse) {
     sendResponse({ success: true });
   } catch (error) {
     console.error('Noted: Error saving annotation:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+// Phase 5: Handle thumbnail capture
+async function handleCaptureThumbnail(sendResponse) {
+  try {
+    const dataUrl = await chrome.tabs.captureVisibleTab(null, {
+      format: 'jpeg',
+      quality: 50
+    });
+    sendResponse({ success: true, dataUrl });
+  } catch (error) {
+    console.error('Noted: Thumbnail capture failed:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+// Phase 6: Handle screenshot capture for SVG export
+async function handleCaptureScreenshot(message, sendResponse) {
+  try {
+    const format = message.format || 'png';
+    const options = { format };
+    if (format === 'jpeg') options.quality = 80;
+
+    const dataUrl = await chrome.tabs.captureVisibleTab(null, options);
+    sendResponse({ success: true, dataUrl });
+  } catch (error) {
+    console.error('Noted: Screenshot capture failed:', error);
     sendResponse({ success: false, error: error.message });
   }
 }

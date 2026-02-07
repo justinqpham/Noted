@@ -368,6 +368,283 @@ class AnchorEngine {
     return stored.domHash !== current.domHash || stored.textHash !== current.textHash;
   }
 
+  // ========================================================
+  // Phase 5: Confidence-Scored Resolution & Correction Calibration
+  // ========================================================
+
+  /**
+   * Generate anchor with confidence scores and text context.
+   * Extends the existing generateAnchor() with richer data.
+   */
+  static generateAnchorWithConfidence(x, y, viewportWidth, viewportHeight) {
+    const base = this.generateAnchor(x, y, viewportWidth, viewportHeight);
+
+    base.confidence = {
+      xpath: base.xpath ? 0.70 : 0,
+      cssSelector: base.cssSelector ? 0.65 : 0,
+      textContent: base.textContent ? 0.85 : 0,
+      position: 0.40
+    };
+
+    // Boost xpath confidence if it uses an ID
+    if (base.xpath && base.xpath.includes('@id=')) {
+      base.confidence.xpath = 0.95;
+    }
+
+    // Add richer text context
+    const element = document.elementFromPoint(x, y);
+    if (element && element !== document.body && element !== document.documentElement) {
+      base.textContext = this.getTextContext(element);
+    }
+
+    base.learnedOffset = { x: 0, y: 0 };
+    base.corrections = [];
+
+    return base;
+  }
+
+  /**
+   * Get surrounding text context for an element
+   */
+  static getTextContext(element) {
+    const targetText = (element.textContent || '').trim().slice(0, 50);
+    let contextBefore = '';
+    let contextAfter = '';
+
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let prevText = '';
+    let foundTarget = false;
+    let node;
+
+    while (node = walker.nextNode()) {
+      const text = node.textContent.trim();
+      if (!text) continue;
+      if (!foundTarget && element.contains(node)) {
+        contextBefore = prevText;
+        foundTarget = true;
+      } else if (foundTarget && !element.contains(node)) {
+        contextAfter = text.slice(0, 50);
+        break;
+      }
+      prevText = text.slice(0, 50);
+    }
+
+    return {
+      targetText,
+      contextBefore,
+      contextAfter,
+      parentTag: element.tagName,
+      parentClasses: element.className ? element.className.split(/\s+/).filter(Boolean) : []
+    };
+  }
+
+  /**
+   * Resolve anchor using confidence-ranked strategies.
+   * Falls back to existing resolveAnchor() for old-format anchors.
+   */
+  static resolveWithConfidence(anchor) {
+    if (!anchor || !anchor.confidence) {
+      const result = this.resolveAnchor(anchor);
+      if (result) {
+        return { ...result, strategy: 'legacy', confidence: 0.5, success: true };
+      }
+      return { element: null, x: 0, y: 0, strategy: 'fallback', confidence: 0, success: false };
+    }
+
+    const strategies = [
+      { type: 'xpath', confidence: anchor.confidence.xpath || 0 },
+      { type: 'cssSelector', confidence: anchor.confidence.cssSelector || 0 },
+      { type: 'textContent', confidence: anchor.confidence.textContent || 0 },
+      { type: 'position', confidence: anchor.confidence.position || 0 }
+    ].sort((a, b) => b.confidence - a.confidence);
+
+    for (const strategy of strategies) {
+      if (strategy.confidence === 0) continue;
+      const result = this._tryStrategy(strategy.type, anchor);
+      if (result) {
+        if (anchor.learnedOffset) {
+          result.x += anchor.learnedOffset.x || 0;
+          result.y += anchor.learnedOffset.y || 0;
+        }
+        anchor.confidence[strategy.type] = Math.min(
+          (anchor.confidence[strategy.type] || 0) + 0.05, 1.0
+        );
+        return { ...result, strategy: strategy.type, confidence: strategy.confidence, success: true };
+      }
+    }
+
+    const currentScrollX = window.pageXOffset || 0;
+    const currentScrollY = window.pageYOffset || 0;
+    return {
+      element: null,
+      x: (anchor.pageX || 0) - currentScrollX,
+      y: (anchor.pageY || 0) - currentScrollY,
+      strategy: 'fallback',
+      confidence: 0.10,
+      success: false,
+      requiresUserReview: true
+    };
+  }
+
+  static _tryStrategy(type, anchor) {
+    switch (type) {
+      case 'xpath': return this._tryXPath(anchor);
+      case 'cssSelector': return this._tryCSSSelector(anchor);
+      case 'textContent': return this._tryTextContent(anchor);
+      case 'position': return this._tryPosition(anchor);
+      default: return null;
+    }
+  }
+
+  static _tryXPath(anchor) {
+    if (!anchor.xpath) return null;
+    const element = this.resolveXPath(anchor.xpath);
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return { element, x: rect.left + (anchor.offsetX || 0), y: rect.top + (anchor.offsetY || 0) };
+  }
+
+  static _tryCSSSelector(anchor) {
+    if (!anchor.cssSelector) return null;
+    const element = this.resolveCSSSelector(anchor.cssSelector);
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return { element, x: rect.left + (anchor.offsetX || 0), y: rect.top + (anchor.offsetY || 0) };
+  }
+
+  static _tryTextContent(anchor) {
+    const ctx = anchor.textContext;
+    if (!ctx && !anchor.textContent) return null;
+    const targetText = ctx ? ctx.targetText : anchor.textContent;
+
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    let node;
+    while (node = walker.nextNode()) {
+      if (node.textContent.trim()) textNodes.push(node);
+    }
+
+    for (let i = 0; i < textNodes.length; i++) {
+      const text = textNodes[i].textContent;
+      if (!text.includes(targetText)) continue;
+      if (ctx && ctx.contextBefore) {
+        const prevText = textNodes[i - 1]?.textContent || '';
+        const nextText = textNodes[i + 1]?.textContent || '';
+        if (!prevText.includes(ctx.contextBefore) || !nextText.includes(ctx.contextAfter || '')) continue;
+      }
+      const element = textNodes[i].parentElement;
+      if (!element) continue;
+      const rect = element.getBoundingClientRect();
+      return { element, x: rect.left + (anchor.offsetX || 0), y: rect.top + (anchor.offsetY || 0) };
+    }
+    return null;
+  }
+
+  static _tryPosition(anchor) {
+    if (anchor.pageX === undefined) return null;
+    return {
+      element: null,
+      x: anchor.pageX - (window.pageXOffset || 0),
+      y: anchor.pageY - (window.pageYOffset || 0)
+    };
+  }
+
+  /**
+   * Record a user correction when they reposition an annotation.
+   * After 3+ corrections with consistent direction, applies a permanent offset.
+   */
+  static recordCorrection(anchor, oldPosition, newPosition) {
+    if (!anchor) return;
+    if (!anchor.corrections) anchor.corrections = [];
+
+    anchor.corrections.push({
+      timestamp: Date.now(),
+      delta: { x: newPosition.x - oldPosition.x, y: newPosition.y - oldPosition.y }
+    });
+
+    if (anchor.corrections.length > 20) {
+      anchor.corrections = anchor.corrections.slice(-20);
+    }
+
+    if (anchor.corrections.length >= 3) {
+      this.calibrateOffset(anchor);
+    }
+  }
+
+  /**
+   * Analyze correction history and apply permanent offset if consistent.
+   */
+  static calibrateOffset(anchor) {
+    const deltas = anchor.corrections.map(c => c.delta);
+    const avgX = deltas.reduce((sum, d) => sum + d.x, 0) / deltas.length;
+    const avgY = deltas.reduce((sum, d) => sum + d.y, 0) / deltas.length;
+    const stdX = Math.sqrt(deltas.reduce((sum, d) => sum + Math.pow(d.x - avgX, 2), 0) / deltas.length);
+    const stdY = Math.sqrt(deltas.reduce((sum, d) => sum + Math.pow(d.y - avgY, 2), 0) / deltas.length);
+
+    if (stdX < 20 && stdY < 20) {
+      anchor.learnedOffset = { x: Math.round(avgX), y: Math.round(avgY) };
+      console.log('Noted: Calibrated anchor offset:', anchor.learnedOffset);
+    }
+  }
+
+  /**
+   * Show warning banner when anchoring falls back.
+   * Uses addEventListener (not inline onclick) for security.
+   */
+  static showAnchorWarning(annotationId) {
+    const key = `noted-warning-${window.location.href}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, 'true');
+
+    const banner = document.createElement('div');
+    banner.className = 'noted-anchor-warning';
+
+    const icon = document.createElement('div');
+    icon.className = 'noted-warning-icon';
+    icon.textContent = '\u26A0\uFE0F';
+
+    const text = document.createElement('div');
+    text.className = 'noted-warning-text';
+    text.textContent = 'This page changed. Some annotations may be misaligned.';
+
+    const actions = document.createElement('div');
+    actions.className = 'noted-warning-actions';
+
+    const viewBtn = document.createElement('button');
+    viewBtn.className = 'noted-warning-action-btn';
+    viewBtn.textContent = 'View Original';
+    viewBtn.addEventListener('click', () => {
+      if (typeof annotationManager !== 'undefined') {
+        annotationManager.showThumbnailOverlay(annotationId);
+      }
+    });
+
+    const repositionBtn = document.createElement('button');
+    repositionBtn.className = 'noted-warning-action-btn';
+    repositionBtn.textContent = 'Reposition';
+    repositionBtn.addEventListener('click', () => {
+      if (typeof annotationManager !== 'undefined') {
+        annotationManager.enableRepositionMode(annotationId);
+      }
+      banner.remove();
+    });
+
+    const dismissBtn = document.createElement('button');
+    dismissBtn.className = 'noted-warning-dismiss';
+    dismissBtn.textContent = 'Dismiss';
+    dismissBtn.addEventListener('click', () => banner.remove());
+
+    actions.appendChild(viewBtn);
+    actions.appendChild(repositionBtn);
+    banner.appendChild(icon);
+    banner.appendChild(text);
+    banner.appendChild(actions);
+    banner.appendChild(dismissBtn);
+
+    document.body.insertBefore(banner, document.body.firstChild);
+    setTimeout(() => { if (banner.parentNode) banner.remove(); }, 10000);
+  }
+
   /**
    * Detect if current page uses infinite scroll
    * @returns {boolean}

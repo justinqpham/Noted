@@ -208,6 +208,51 @@ function initializeActionButtons() {
     }
   });
 
+  // Phase 6: Export SVG button
+  const exportSvgBtn = document.getElementById('export-svg-btn');
+  if (exportSvgBtn) {
+    exportSvgBtn.addEventListener('click', async () => {
+      console.log('Noted: Export SVG button clicked');
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.id) {
+          await chrome.tabs.sendMessage(tab.id, { type: 'EXPORT_SVG' });
+          window.close();
+        }
+      } catch (error) {
+        console.error('Noted: Error triggering SVG export:', error);
+      }
+    });
+  }
+
+  // Phase 7: Share button
+  const shareBtn = document.getElementById('share-btn');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', async () => {
+      console.log('Noted: Share button clicked');
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.id) {
+          const response = await chrome.tabs.sendMessage(tab.id, { type: 'GENERATE_SHARE_LINK' });
+          if (response?.shareUrl) {
+            await navigator.clipboard.writeText(response.shareUrl);
+            shareBtn.textContent = '✓';
+            shareBtn.title = 'Link copied!';
+            setTimeout(() => {
+              shareBtn.textContent = '🔗';
+              shareBtn.title = 'Share Annotations';
+            }, 2000);
+          } else {
+            shareBtn.title = 'No annotations to share';
+            setTimeout(() => { shareBtn.title = 'Share Annotations'; }, 2000);
+          }
+        }
+      } catch (error) {
+        console.error('Noted: Error generating share link:', error);
+      }
+    });
+  }
+
   // New collection button
   const newCollectionBtn = document.getElementById('new-collection-btn');
   newCollectionBtn.addEventListener('click', () => {

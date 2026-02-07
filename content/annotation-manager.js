@@ -184,9 +184,17 @@ class AnnotationManager {
               currentScroll: currentScroll
             });
 
-            const resolved = AnchorEngine.resolveAnchor(annotation.anchor);
+            // Phase 5: Use confidence-scored resolution when available
+            const resolved = annotation.anchor.confidence
+              ? AnchorEngine.resolveWithConfidence(annotation.anchor)
+              : AnchorEngine.resolveAnchor(annotation.anchor);
 
             if (resolved) {
+              // Phase 5: Show warning if anchor fell back
+              if (resolved.requiresUserReview) {
+                AnchorEngine.showAnchorWarning(annotation.id);
+              }
+
               console.log('Noted: Resolved position', {
                 annotationId: annotation.id,
                 resolved: resolved,
@@ -458,7 +466,10 @@ class AnnotationManager {
         return;
       }
 
-      const resolved = AnchorEngine.resolveAnchor(annotation.anchor);
+      // Phase 5: Use confidence-scored resolution when available
+      const resolved = annotation.anchor.confidence
+        ? AnchorEngine.resolveWithConfidence(annotation.anchor)
+        : AnchorEngine.resolveAnchor(annotation.anchor);
       if (!resolved) {
         return;
       }
@@ -670,6 +681,134 @@ class AnnotationManager {
         }
       });
     });
+  }
+
+  // ========================================================
+  // Phase 5: Thumbnail Capture & Overlay
+  // ========================================================
+
+  /**
+   * Capture a thumbnail around the annotation position via background service worker.
+   * chrome.tabs.captureVisibleTab() is only available in background/popup context.
+   * @param {Object} position - { x, y } page coordinates
+   * @returns {string|null} Base64 JPEG data URL or null
+   */
+  async captureThumbnail(position) {
+    try {
+      // Check storage quota before capturing
+      const bytes = await new Promise(resolve => chrome.storage.local.getBytesInUse(null, resolve));
+      if (bytes > 8 * 1024 * 1024) {
+        console.log('Noted: Skipping thumbnail (storage > 8MB)');
+        return null;
+      }
+
+      const response = await chrome.runtime.sendMessage({ type: 'CAPTURE_THUMBNAIL' });
+      if (!response?.success || !response.dataUrl) return null;
+
+      const scrollX = window.pageXOffset || 0;
+      const scrollY = window.pageYOffset || 0;
+      const rect = {
+        x: Math.max(0, position.x - scrollX - 50),
+        y: Math.max(0, position.y - scrollY - 50),
+        width: 300,
+        height: 200
+      };
+
+      return await this.cropImage(response.dataUrl, rect);
+    } catch (error) {
+      console.error('Noted: Thumbnail capture failed:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Crop an image data URL to a specific rectangle
+   */
+  async cropImage(dataUrl, rect) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.5));
+      };
+      img.onerror = () => resolve(null);
+      img.src = dataUrl;
+    });
+  }
+
+  /**
+   * Show a thumbnail overlay for an annotation (used from warning banner)
+   */
+  showThumbnailOverlay(annotationId) {
+    const annotation = this.annotations.find(a => a.id === annotationId);
+    if (!annotation?.anchor?.thumbnail) {
+      console.log('Noted: No thumbnail available for annotation', annotationId);
+      return;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'noted-thumbnail-overlay';
+
+    const content = document.createElement('div');
+    content.className = 'noted-thumbnail-content';
+
+    const title = document.createElement('h3');
+    title.textContent = 'Original Page State';
+    title.style.cssText = 'margin: 0 0 12px 0; font-size: 18px; color: white;';
+
+    const img = document.createElement('img');
+    img.src = annotation.anchor.thumbnail;
+    img.alt = 'Original annotation context';
+    img.style.cssText = 'max-width: 100%; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close';
+    closeBtn.style.cssText = 'margin-top: 16px; padding: 8px 24px; border: none; background: white; color: #1D1D1F; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;';
+    closeBtn.addEventListener('click', () => overlay.remove());
+
+    content.appendChild(title);
+    content.appendChild(img);
+    content.appendChild(closeBtn);
+    overlay.appendChild(content);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+    document.body.appendChild(overlay);
+  }
+
+  /**
+   * Enable reposition mode for a specific annotation
+   */
+  enableRepositionMode(annotationId) {
+    console.log('Noted: Reposition mode for', annotationId);
+    // Flash the annotation to draw attention
+    const el = document.querySelector(`[data-annotation-id="${annotationId}"]`);
+    if (el) {
+      el.style.outline = '3px solid #007AFF';
+      el.style.outlineOffset = '4px';
+      setTimeout(() => {
+        el.style.outline = '';
+        el.style.outlineOffset = '';
+      }, 3000);
+    }
+  }
+
+  /**
+   * Get all annotations for the current page
+   * @returns {Array} annotations
+   */
+  getAnnotationsForCurrentPage() {
+    return this.annotations;
+  }
+
+  /**
+   * Get a single annotation by ID
+   */
+  getAnnotation(annotationId) {
+    return this.annotations.find(a => a.id === annotationId) || null;
   }
 
   /**
