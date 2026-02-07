@@ -805,6 +805,7 @@ class DrawModeController {
     this.tool = 'draw';
     this.isErasing = false;
     this.lastEraserPoint = null;
+    this._pendingSave = null;  // Track pending save promise for deactivation
   }
 
   /**
@@ -875,10 +876,19 @@ class DrawModeController {
       this.scrollHandler = null;
     }
 
+    // Await any pending save from the last mouseup (saveCurrentDrawing is not awaited there)
+    if (this._pendingSave) {
+      await this._pendingSave;
+      this._pendingSave = null;
+    }
+
     // Save any current drawing BEFORE removing canvas
     if (this.drawingEngine.points.length > 0) {
       await this.saveCurrentDrawing();
     }
+
+    // Skip any pending storage change events to avoid clearing annotations
+    this.manager.skipNextStorageReload = true;
 
     // Clear drawing engine history (strokes are saved as annotations)
     console.log('Noted: Clearing canvas history');
@@ -924,7 +934,7 @@ class DrawModeController {
     this.canvas.addEventListener('mouseup', () => {
       // Only save if we were actually drawing
       if (this.tool === 'draw' && this.drawingEngine.isDrawing) {
-        this.saveCurrentDrawing();
+        this._pendingSave = this.saveCurrentDrawing();
       }
       if (this.tool === 'eraser') {
         this.handleEraserUp();
@@ -934,7 +944,7 @@ class DrawModeController {
     // Also handle mouse leaving the canvas
     this.canvas.addEventListener('mouseleave', () => {
       if (this.tool === 'draw' && this.drawingEngine.isDrawing) {
-        this.saveCurrentDrawing();
+        this._pendingSave = this.saveCurrentDrawing();
       }
       if (this.tool === 'eraser') {
         this.handleEraserUp();
@@ -946,7 +956,7 @@ class DrawModeController {
    * Attach keyboard listeners for undo/redo and ESC
    */
   attachKeyboardListeners() {
-    this.keydownHandler = (e) => {
+    this.keydownHandler = async (e) => {
       // Change cursor to grab when Alt is held
       if (e.key === 'Alt') {
         if (this.canvas) {
@@ -956,7 +966,7 @@ class DrawModeController {
 
       // ESC to exit
       if (e.key === 'Escape') {
-        this.deactivate();
+        await this.deactivate();
         return;
       }
 
@@ -1073,7 +1083,9 @@ class DrawModeController {
     console.log('Noted: Drawing annotation saved and rendered', annotation.id);
 
     // Ensure newly rendered annotations remain transparent to pointer events during draw mode
-    this.setAnnotationPointerEvents(false);
+    if (this.isActive) {
+      this.setAnnotationPointerEvents(false);
+    }
 
     // Store the annotation ID with the history entry for undo/redo
     const lastHistoryEntry = this.drawingEngine.history[this.drawingEngine.historyIndex];

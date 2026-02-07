@@ -12,12 +12,13 @@
 
 ## Features
 
-### ✅ Completed (Phases 1-4)
+### ✅ Completed (Phases 1-7)
 
 #### 🏷️ Text Annotations
 - **Quick placement** with `Ctrl+Shift+T`
-- Click anywhere on a page to add a text label
+- Click anywhere to place text annotations — stays in text mode for multiple placements
 - Drag to move, resize handles to adjust
+- Color picker, bold, font size, bullet list formatting
 - Delete on hover
 - Persists across browser sessions
 
@@ -30,39 +31,43 @@
 - **Alt+drag** to reposition strokes while drawing
 - **Ctrl+Z** to undo mistakes
 - **Eraser mode** to remove individual strokes (with undo support)
+- **Stroke shadow toggle** (on/off)
 - Delete individual strokes
 - All drawings saved as crisp SVG vectors
 
+#### 🔗 Smart Anchoring (Phase 5)
+- Multi-strategy DOM anchoring (XPath, CSS, text, position) with fallback
+- Confidence-scored anchor resolution
+- Correction calibration from user drag operations
+- Screenshot thumbnail capture for context
+- Content change warning banner
+- Infinite scroll page detection
+
+#### 🖼️ Export (Phase 6)
+- Export as **SVG** (editable layers for Figma/Inkscape) or **PNG** (flat image)
+- Native SVG elements — no foreignObject for maximum compatibility
+- Screenshot background hides extension UI to prevent duplication
+- Export format configurable in Settings
+
+#### 🔗 Sharing (Phase 7)
+- Share annotations via short UUID links (stored locally)
+- Share banner with "Save to My Annotations" and "Dismiss"
+- 90-day expiration on shared links
+
 #### 💾 Smart Storage
-- Annotations saved per URL
+- Annotations saved per URL (normalized, tracking params stripped)
 - Automatic cross-tab synchronization
 - Local storage using Chrome Storage API
 - No account required, no tracking
 
 #### 🎨 Dashboard
-- View all annotations for current page
-- Quick delete with visual confirmation
-- Clear all annotations with safety confirmation
-
----
-
-### 🔄 In Progress (Phases 5-7)
-
-#### Phase 5: Robust Anchoring System
-- Multi-strategy DOM anchoring (5 strategies with fallback)
-- Machine learning from user corrections
-- Screenshot thumbnail fallback
-- Warning system for page changes
-
-#### Phase 6: SVG Export
-- Export annotations as layered SVG
-- Figma-compatible format
-- Background screenshot + editable annotations
-
-#### Phase 7: Basic Sharing
-- Share annotations via extension-to-extension links
-- Recipients must have extension installed
-- 90-day expiration on shared links
+- **4 tabs**: Current Page, All Annotations, Collections, Settings
+- Search, filter by type, sort annotations
+- **Undo Delete** button (in-memory stack, up to 20 levels)
+- **Clear Page / Clear All** with double-click confirmation
+- Export format setting (SVG or PNG)
+- Storage usage display
+- Import/Export annotations (JSON)
 
 ---
 
@@ -74,10 +79,10 @@
 - Context menu (right-click to annotate)
 - Annotation templates (Bug Report, Design Feedback, Research)
 - Layers system
-- Monetization (optional Pro tier)
-- Comprehensive testing & Chrome Web Store launch
+- Arrow/shape drawing tools
+- Chrome Web Store launch
 
-See [project_spec_3_phases8-12.md](project_spec_3_phases8-12.md) for details (to be written after Phase 7).
+See [project_spec_3_phases8-12.md](project_spec_3_phases8-12.md) for details.
 
 ---
 
@@ -113,9 +118,10 @@ See [project_spec_3_phases8-12.md](project_spec_3_phases8-12.md) for details (to
 1. Press `Ctrl+Shift+T` to activate text mode
 2. Click anywhere on the page to place a text box
 3. Type your annotation
-4. Drag to move, use handles to resize
-5. Hover to see delete button
-6. Press `ESC` to exit text mode
+4. Click elsewhere to place another text annotation (stays in text mode)
+5. Drag to move, use handles to resize
+6. Hover to see delete button
+7. Press `ESC` to exit text mode
 
 ### Drawing Annotations
 
@@ -134,8 +140,11 @@ See [project_spec_3_phases8-12.md](project_spec_3_phases8-12.md) for details (to
 ### Managing Annotations
 
 - **View all annotations**: Click the Noted extension icon
-- **Clear all**: Click "Clear All Annotations" in popup (requires double-click confirmation)
+- **Clear page/all**: Use Clear Page or Clear All buttons (double-click to confirm)
+- **Undo delete**: Click "Undo Delete" to restore deleted annotations (up to 20 levels)
 - **Delete individual**: Hover over annotation and click delete button
+- **Export**: Click the export button (SVG or PNG, configurable in Settings)
+- **Share**: Click the share button to generate a share link
 
 ---
 
@@ -162,8 +171,10 @@ Noted/
 ├── content/
 │   ├── content-script.js      # Main content script
 │   ├── annotation-manager.js  # Annotation lifecycle management
+│   ├── anchor-engine.js       # Multi-strategy DOM anchoring
 │   ├── text-engine.js         # Text annotation system
 │   ├── drawing-engine.js      # Drawing & canvas system
+│   ├── export-engine.js       # SVG/PNG export engine
 │   └── styles.css             # Annotation UI styles
 ├── popup/
 │   ├── dashboard.html         # Extension popup interface
@@ -246,13 +257,12 @@ open tests/storage-helper.test.html
 
 ## Current Status
 
-**Phase 4 Complete** ✅
-- Local annotation system fully functional
-- Text and drawing modes working
-- Basic dashboard implemented
-
-**Phase 5 In Progress** 🔄
-- Robust anchoring system (multi-strategy with ML learning)
+**Phases 1-7 Complete** ✅
+- Text and drawing annotation system fully functional
+- Multi-strategy anchoring with confidence scoring
+- SVG/PNG export (Figma/Inkscape compatible)
+- Storage-based sharing with short UUID links
+- Full dashboard with undo, clear, search, filters, and settings
 
 See [HANDOFF.md](HANDOFF.md) for latest development status and handoff notes.
 
@@ -265,6 +275,10 @@ No critical issues currently. Recent fixes include:
 - ✅ URL normalization for annotation persistence
 - ✅ Window resize drift fixed
 - ✅ Scroll ghosting eliminated
+- ✅ Screenshot duplication in SVG export fixed
+- ✅ Draw mode ESC race condition fixed
+- ✅ Text mode now stays active for multiple placements
+- ✅ Button centering/padding fixes across all UI
 
 See [HANDOFF.md](HANDOFF.md) for detailed fix history.
 
@@ -272,19 +286,16 @@ See [HANDOFF.md](HANDOFF.md) for detailed fix history.
 
 ## Roadmap
 
-### Completed (Phases 1-4)
-- [x] Text annotation system
+### Completed (Phases 1-7) ✅
+- [x] Text annotation system (multi-placement mode)
 - [x] Freehand drawing system
 - [x] 12-color palette with 5 brush sizes
-- [x] Draggable control panel
-- [x] Eraser mode with undo support
-- [x] Persistent local storage
-- [x] Basic dashboard UI
-
-### In Progress (Phases 5-7)
-- [ ] Multi-strategy anchoring with ML learning
-- [ ] SVG export (Figma-compatible)
-- [ ] Basic sharing (extension-to-extension)
+- [x] Draggable control panel with eraser & shadow toggle
+- [x] Persistent local storage with URL normalization
+- [x] Dashboard UI with search, filters, undo, and clear
+- [x] Multi-strategy anchoring with confidence scoring
+- [x] SVG/PNG export (Figma-compatible)
+- [x] Storage-based sharing with short UUID links
 
 ### Planned (Phases 8-12)
 - [ ] Authentication & cloud sync (optional)
@@ -292,7 +303,8 @@ See [HANDOFF.md](HANDOFF.md) for detailed fix history.
 - [ ] Context menu
 - [ ] Annotation templates
 - [ ] Layers system
-- [ ] Testing & Chrome Web Store launch
+- [ ] Arrow/shape tools
+- [ ] Chrome Web Store launch
 
 See [project_spec_3_phases8-12.md](project_spec_3_phases8-12.md) for future roadmap details.
 

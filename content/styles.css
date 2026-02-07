@@ -332,7 +332,7 @@
 }
 
 .noted-draw-toggle-btn {
-  padding: 6px 14px;
+  padding: 6px 16px;
   border-radius: 999px;
   border: 1px solid var(--border-color);
   background: #F5F5F7;
@@ -341,6 +341,8 @@
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+  text-align: center;
+  line-height: 1;
 }
 
 .noted-draw-toggle-btn:hover {
@@ -459,12 +461,14 @@
   flex: 1;
   border: none;
   background: transparent;
-  padding: 8px 12px;
+  padding: 8px 0;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
   color: var(--text-secondary);
+  text-align: center;
+  line-height: 1;
 }
 
 .noted-draw-tool-btn:hover {
@@ -527,13 +531,17 @@
   background: rgba(0, 0, 0, 0.1);
   border: none;
   border-radius: 6px;
-  padding: 8px 12px;
+  padding: 8px 14px;
   font-size: 13px;
   font-weight: 600;
   color: #1D1D1F;
   cursor: pointer;
   transition: all 0.2s;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .noted-warning-dismiss:hover {
@@ -688,6 +696,10 @@
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .noted-warning-action-btn:hover {
@@ -749,7 +761,7 @@
 .noted-shared-action-btn {
   background: #2196F3;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 8px 16px;
   font-size: 13px;
   font-weight: 600;
@@ -757,6 +769,10 @@
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .noted-shared-action-btn:hover {
@@ -767,14 +783,18 @@
 .noted-shared-dismiss-btn {
   background: rgba(0, 0, 0, 0.1);
   border: none;
-  border-radius: 6px;
-  padding: 8px 12px;
+  border-radius: 8px;
+  padding: 8px 14px;
   font-size: 13px;
   font-weight: 600;
   color: #1565C0;
   cursor: pointer;
   transition: all 0.2s;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .noted-shared-dismiss-btn:hover {

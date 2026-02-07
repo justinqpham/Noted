@@ -54,9 +54,14 @@ function initialize() {
         sendResponse({ success: true });
         break;
 
-      // Phase 6: SVG Export
+      // Phase 6: Export (SVG or PNG)
       case 'EXPORT_SVG':
-        handleExportSVG();
+        handleExportAnnotations('svg');
+        sendResponse({ success: true });
+        break;
+
+      case 'EXPORT_ANNOTATIONS':
+        handleExportAnnotations(message.format || 'svg');
         sendResponse({ success: true });
         break;
 
@@ -168,13 +173,14 @@ if (document.readyState === 'loading') {
 }
 
 // ========================================================
-// Phase 6: SVG Export Handler
+// Phase 6: Export Handler (SVG / PNG)
 // ========================================================
 
 /**
- * Handle SVG export request from popup
+ * Handle export request from popup.
+ * @param {'svg'|'png'} format
  */
-async function handleExportSVG() {
+async function handleExportAnnotations(format) {
   if (!annotationManager) return;
 
   const annotations = annotationManager.getAnnotationsForCurrentPage();
@@ -184,20 +190,28 @@ async function handleExportSVG() {
   }
 
   try {
-    const svgBlob = await exportEngine.exportToSVG(annotations, { format: 'blob' });
+    let blob, ext;
 
-    const url = URL.createObjectURL(svgBlob);
+    if (format === 'png') {
+      blob = await exportEngine.exportToPNG(annotations);
+      ext = 'png';
+    } else {
+      blob = await exportEngine.exportToSVG(annotations, { format: 'blob' });
+      ext = 'svg';
+    }
+
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `noted-${window.location.hostname}-${Date.now()}.svg`;
+    a.download = `noted-${window.location.hostname}-${Date.now()}.${ext}`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
 
-    console.log('Noted: SVG exported successfully');
+    console.log(`Noted: ${ext.toUpperCase()} exported successfully`);
   } catch (error) {
-    console.error('Noted: SVG export failed:', error);
+    console.error('Noted: Export failed:', error);
   }
 }
 

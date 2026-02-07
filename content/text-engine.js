@@ -478,7 +478,7 @@ class TextModeController {
   showInstruction() {
     const instruction = document.createElement('div');
     instruction.className = 'noted-instruction';
-    instruction.textContent = 'Click anywhere to add a text annotation (ESC to cancel)';
+    instruction.textContent = 'Click anywhere to add text annotations • ESC to finish';
     document.body.appendChild(instruction);
   }
 
@@ -537,7 +537,6 @@ class TextModeController {
     });
 
     this.manager.addAnnotation(annotation);
-    this.deactivate();
   }
 }
 

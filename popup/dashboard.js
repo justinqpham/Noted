@@ -13,6 +13,7 @@ const dashboardState = {
   annotationIndex: {},
   currentAnnotations: [],
   allAnnotations: [],
+  undoStack: [],
   filters: {
     search: '',
     type: 'all',
@@ -208,19 +209,21 @@ function initializeActionButtons() {
     }
   });
 
-  // Phase 6: Export SVG button
+  // Phase 6: Export button (SVG or PNG based on settings)
   const exportSvgBtn = document.getElementById('export-svg-btn');
   if (exportSvgBtn) {
     exportSvgBtn.addEventListener('click', async () => {
-      console.log('Noted: Export SVG button clicked');
       try {
+        const result = await chrome.storage.local.get(['settings']);
+        const format = result.settings?.exportFormat || 'svg';
+        console.log('Noted: Export button clicked, format:', format);
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tab?.id) {
-          await chrome.tabs.sendMessage(tab.id, { type: 'EXPORT_SVG' });
+          await chrome.tabs.sendMessage(tab.id, { type: 'EXPORT_ANNOTATIONS', format });
           window.close();
         }
       } catch (error) {
-        console.error('Noted: Error triggering SVG export:', error);
+        console.error('Noted: Error triggering export:', error);
       }
     });
   }
@@ -305,6 +308,77 @@ function initializeActionButtons() {
   } else {
     console.error('Noted: Clear all button not found');
   }
+
+  // Undo delete buttons (Current Page + All Annotations tabs)
+  const undoDeleteBtn = document.getElementById('undo-delete-btn');
+  if (undoDeleteBtn) {
+    undoDeleteBtn.addEventListener('click', async () => {
+      await undoDelete();
+    });
+  }
+
+  const undoDeleteAllBtn = document.getElementById('undo-delete-all-btn');
+  if (undoDeleteAllBtn) {
+    undoDeleteAllBtn.addEventListener('click', async () => {
+      await undoDelete();
+    });
+  }
+
+  // Clear Page button (Current Page tab)
+  const clearPageBtn = document.getElementById('clear-page-btn');
+  if (clearPageBtn) {
+    clearPageBtn.addEventListener('click', async () => {
+      if (clearPageBtn.dataset.confirmPending === 'true') {
+        clearPageBtn.dataset.confirmPending = 'false';
+        clearPageBtn.textContent = 'Clear Page';
+        clearPageBtn.style.background = '';
+        clearPageBtn.style.color = '';
+        clearPageBtn.style.borderColor = '';
+        await clearCurrentPageAnnotations();
+      } else {
+        clearPageBtn.dataset.confirmPending = 'true';
+        clearPageBtn.textContent = 'Click to confirm';
+        clearPageBtn.style.background = '#ff3b30';
+        clearPageBtn.style.color = 'white';
+        clearPageBtn.style.borderColor = '#ff3b30';
+        setTimeout(() => {
+          clearPageBtn.dataset.confirmPending = 'false';
+          clearPageBtn.textContent = 'Clear Page';
+          clearPageBtn.style.background = '';
+          clearPageBtn.style.color = '';
+          clearPageBtn.style.borderColor = '';
+        }, 3000);
+      }
+    });
+  }
+
+  // Clear All button (All Annotations tab)
+  const clearAllAnnotationsBtn = document.getElementById('clear-all-annotations-btn');
+  if (clearAllAnnotationsBtn) {
+    clearAllAnnotationsBtn.addEventListener('click', async () => {
+      if (clearAllAnnotationsBtn.dataset.confirmPending === 'true') {
+        clearAllAnnotationsBtn.dataset.confirmPending = 'false';
+        clearAllAnnotationsBtn.textContent = 'Clear All';
+        clearAllAnnotationsBtn.style.background = '';
+        clearAllAnnotationsBtn.style.color = '';
+        clearAllAnnotationsBtn.style.borderColor = '';
+        await clearAllAnnotations();
+      } else {
+        clearAllAnnotationsBtn.dataset.confirmPending = 'true';
+        clearAllAnnotationsBtn.textContent = 'Click to confirm';
+        clearAllAnnotationsBtn.style.background = '#ff3b30';
+        clearAllAnnotationsBtn.style.color = 'white';
+        clearAllAnnotationsBtn.style.borderColor = '#ff3b30';
+        setTimeout(() => {
+          clearAllAnnotationsBtn.dataset.confirmPending = 'false';
+          clearAllAnnotationsBtn.textContent = 'Clear All';
+          clearAllAnnotationsBtn.style.background = '';
+          clearAllAnnotationsBtn.style.color = '';
+          clearAllAnnotationsBtn.style.borderColor = '';
+        }, 3000);
+      }
+    });
+  }
 }
 
 /**
@@ -350,7 +424,29 @@ function initializeSettings() {
 
     textHotkey.value = settings.hotkeys?.textMode || 'Ctrl+Shift+T';
     drawHotkey.value = settings.hotkeys?.drawMode || 'Ctrl+Shift+D';
+
+    // Export format
+    const exportFormatSelect = document.getElementById('export-format-select');
+    if (exportFormatSelect) {
+      exportFormatSelect.value = settings.exportFormat || 'svg';
+      updateExportButton(exportFormatSelect.value);
+
+      exportFormatSelect.addEventListener('change', () => {
+        updateSettings({ exportFormat: exportFormatSelect.value });
+        updateExportButton(exportFormatSelect.value);
+      });
+    }
   });
+}
+
+/**
+ * Update export button tooltip to reflect chosen format
+ */
+function updateExportButton(format) {
+  const btn = document.getElementById('export-svg-btn');
+  if (btn) {
+    btn.title = format === 'png' ? 'Export as PNG' : 'Export as SVG';
+  }
 }
 
 /**
@@ -703,6 +799,76 @@ function normalizeURL(urlString) {
   }
 }
 
+// ========================================================
+// Undo Stack
+// ========================================================
+
+/**
+ * Save a snapshot of current annotations/index before a destructive operation
+ */
+function pushUndoSnapshot(annotations, annotationIndex) {
+  dashboardState.undoStack.push({
+    annotations: JSON.parse(JSON.stringify(annotations)),
+    annotationIndex: JSON.parse(JSON.stringify(annotationIndex))
+  });
+  if (dashboardState.undoStack.length > 20) dashboardState.undoStack.shift();
+  updateUndoButtons();
+}
+
+/**
+ * Restore the most recent undo snapshot
+ */
+async function undoDelete() {
+  const snapshot = dashboardState.undoStack.pop();
+  if (!snapshot) return;
+
+  await chrome.storage.local.set({
+    annotations: snapshot.annotations,
+    annotationIndex: snapshot.annotationIndex
+  });
+  await loadAnnotationsData();
+  loadStorageUsage();
+  await notifyActiveTabAnnotationsUpdated();
+  updateUndoButtons();
+}
+
+/**
+ * Enable/disable all undo buttons based on stack
+ */
+function updateUndoButtons() {
+  const hasUndo = dashboardState.undoStack.length > 0;
+  const undoBtn = document.getElementById('undo-delete-btn');
+  const undoAllBtn = document.getElementById('undo-delete-all-btn');
+  if (undoBtn) undoBtn.disabled = !hasUndo;
+  if (undoAllBtn) undoAllBtn.disabled = !hasUndo;
+}
+
+/**
+ * Clear annotations for the current page only
+ */
+async function clearCurrentPageAnnotations() {
+  try {
+    const result = await chrome.storage.local.get(['annotations', 'annotationIndex']);
+    const annotations = result.annotations || {};
+    const annotationIndex = result.annotationIndex || {};
+
+    const url = dashboardState.normalizedCurrentURL;
+    if (!annotations[url] || annotations[url].length === 0) return;
+
+    pushUndoSnapshot(annotations, annotationIndex);
+
+    annotations[url].forEach(a => delete annotationIndex[a.id]);
+    delete annotations[url];
+
+    await chrome.storage.local.set({ annotations, annotationIndex });
+    await loadAnnotationsData();
+    loadStorageUsage();
+    await notifyActiveTabAnnotationsUpdated();
+  } catch (error) {
+    console.error('Noted: Error clearing current page annotations:', error);
+  }
+}
+
 async function deleteAnnotationById(annotationId) {
   try {
     const result = await chrome.storage.local.get(['annotations', 'annotationIndex']);
@@ -714,6 +880,8 @@ async function deleteAnnotationById(annotationId) {
       console.warn('Noted: Annotation ID not found:', annotationId);
       return;
     }
+
+    pushUndoSnapshot(annotations, annotationIndex);
 
     annotations[targetUrl] = annotations[targetUrl].filter(annotation => annotation.id !== annotationId);
     if (annotations[targetUrl].length === 0) {
@@ -783,6 +951,9 @@ async function exportAnnotations() {
 async function clearAllAnnotations() {
   try {
     console.log('Noted: Clearing all annotations...');
+    const result = await chrome.storage.local.get(['annotations', 'annotationIndex']);
+    pushUndoSnapshot(result.annotations || {}, result.annotationIndex || {});
+
     await chrome.storage.local.set({
       annotations: {},
       collections: {},

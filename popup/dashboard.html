@@ -66,6 +66,12 @@
               <option value="modified">Last Modified</option>
             </select>
           </div>
+
+          <div class="action-bar-divider"></div>
+          <div class="action-bar">
+            <button class="action-bar-btn" id="undo-delete-btn" disabled>Undo Delete</button>
+            <button class="action-bar-btn action-bar-btn-danger" id="clear-page-btn">Clear Page</button>
+          </div>
         </div>
 
         <div class="annotation-list" id="current-page-list">
@@ -100,6 +106,12 @@
               <option value="a-z">A-Z</option>
               <option value="z-a">Z-A</option>
             </select>
+          </div>
+
+          <div class="action-bar-divider"></div>
+          <div class="action-bar">
+            <button class="action-bar-btn" id="undo-delete-all-btn" disabled>Undo Delete</button>
+            <button class="action-bar-btn action-bar-btn-danger" id="clear-all-annotations-btn">Clear All</button>
           </div>
         </div>
 
@@ -163,6 +175,17 @@
           </div>
 
           <p class="settings-note">Custom hotkeys will be available in a future update</p>
+        </div>
+
+        <div class="settings-section">
+          <h3 class="settings-heading">Export Format</h3>
+
+          <select class="filter-select" id="export-format-select">
+            <option value="svg">SVG (editable layers)</option>
+            <option value="png">PNG (flat image)</option>
+          </select>
+
+          <p class="settings-note">SVG preserves annotations as editable strokes and text — ideal for Figma or Inkscape</p>
         </div>
 
         <div class="settings-section">

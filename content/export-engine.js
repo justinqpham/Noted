@@ -161,9 +161,31 @@ class ExportEngine {
 
   /**
    * Capture screenshot via background service worker.
+   * Hides all Noted UI elements first so the screenshot only shows the page.
    * chrome.tabs.captureVisibleTab() is not available in content scripts.
    */
   async captureScreenshot() {
+    // Collect all Noted elements that could appear in the screenshot
+    const selectors = [
+      '#noted-extension-root',
+      '.noted-drawing-canvas',
+      '.noted-draw-control-panel',
+      '.noted-instruction'
+    ];
+    const hidden = [];
+
+    selectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => {
+        if (el.style.display !== 'none') {
+          hidden.push({ el, prev: el.style.visibility });
+          el.style.visibility = 'hidden';
+        }
+      });
+    });
+
+    // Small delay to let the browser repaint before capture
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'CAPTURE_SCREENSHOT',
@@ -173,6 +195,11 @@ class ExportEngine {
     } catch (error) {
       console.error('Noted: Screenshot capture failed:', error);
       return null;
+    } finally {
+      // Restore visibility
+      hidden.forEach(({ el, prev }) => {
+        el.style.visibility = prev;
+      });
     }
   }
 
@@ -185,6 +212,45 @@ class ExportEngine {
   svgToBlob(svg) {
     const svgString = new XMLSerializer().serializeToString(svg);
     return new Blob([svgString], { type: 'image/svg+xml' });
+  }
+
+  /**
+   * Export annotations to PNG by rasterizing the SVG onto a canvas.
+   * @param {Array} annotations - Annotations to export
+   * @returns {Blob} PNG blob
+   */
+  async exportToPNG(annotations) {
+    const svgString = await this.exportToSVG(annotations, { format: 'string' });
+
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width * window.devicePixelRatio;
+    canvas.height = height * window.devicePixelRatio;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+    // Load SVG as an image and draw to canvas
+    const img = new Image();
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    return new Promise((resolve, reject) => {
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, width, height);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(blob => {
+          if (blob) resolve(blob);
+          else reject(new Error('Canvas toBlob returned null'));
+        }, 'image/png');
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load SVG as image'));
+      };
+      img.src = url;
+    });
   }
 }
 

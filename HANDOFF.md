@@ -6,7 +6,7 @@
 
 **Repository**: https://github.com/justinqpham/Noted.git
 
-## Current Status: Phase 3 - Drawing System (In Progress)
+## Current Status: Phase 7 Complete — All Core Features Done
 
 ### Completed Features
 
@@ -19,13 +19,13 @@
 
 #### Phase 2: Text Annotation System ✅
 - Text annotation creation with Ctrl+Shift+T
-- Click-to-place text labels on any webpage
+- Click-to-place text labels on any webpage (stays in text mode for multiple placements)
 - Drag and resize functionality for text annotations
 - Delete button with hover interaction
 - Persistent storage per URL
 - Cross-session annotation loading
 
-#### Phase 3: Drawing System (95% Complete) ✅
+#### Phase 3: Drawing System ✅
 - Drawing mode activation with Ctrl+Shift+D
 - Canvas overlay for freehand drawing
 - Catmull-Rom spline interpolation for smooth strokes
@@ -34,18 +34,46 @@
 - Delete button positioning on strokes
 - Alt+drag to move strokes during draw mode
 - Global cursor changes (crosshair in draw mode, grab when Alt held)
-- Clear All Annotations with double-click confirmation
-- **NEW**: Combined color + brush size control panel
-- **NEW**: 12-color palette in 6x2 grid layout
-- **NEW**: 5 brush sizes (2px, 4px, 6px, 8px, 12px) displayed as solid black circles
-- **NEW**: Draggable control panel with grab handle
-- **NEW**: Visual selection feedback (blue borders/backgrounds)
+- Combined color + brush size control panel
+- 12-color palette in 6x2 grid layout
+- 5 brush sizes (2px, 4px, 6px, 8px, 12px) displayed as solid black circles
+- Draggable control panel with grab handle
+- Visual selection feedback (blue borders/backgrounds)
+- Eraser mode with stroke removal and undo support
+- Stroke shadow toggle (on/off)
+- Pending save tracking to prevent ESC race conditions
 
-#### Phase 4: Dashboard (Partial) ✅
-- Popup dashboard UI
-- Display all annotations for current page
-- Clear All Annotations button with confirmation
-- Basic annotation list view
+#### Phase 4: Dashboard ✅
+- Popup dashboard UI with 4 tabs (Current Page, All Annotations, Collections, Settings)
+- Search and filter annotations (by type, sort order, domain)
+- Undo Delete button (in-memory stack, capped at 20)
+- Clear Page / Clear All buttons with double-click confirmation
+- Export format setting (SVG or PNG)
+- Storage usage display
+- Import/Export annotations (JSON)
+- Tab close behavior settings
+- Keyboard shortcut display
+
+#### Phase 5: Confidence-Scored Anchoring ✅
+- Multi-strategy DOM anchoring (XPath, CSS, text, position) with fallback
+- Confidence-scored anchor resolution
+- Correction calibration from user drag operations
+- Screenshot thumbnail capture for anchor context
+- Content change warning banner
+- Infinite scroll page detection with warning modal
+
+#### Phase 6: SVG/PNG Export ✅
+- Export annotations as layered SVG (Figma/Inkscape compatible)
+- Native SVG elements (rect, text, tspan, path) — no foreignObject
+- PNG export via canvas rasterization at device pixel ratio
+- Screenshot capture hides Noted UI before capture to prevent duplication
+- Export format selection in Settings (SVG or PNG)
+
+#### Phase 7: Storage-Based Sharing ✅
+- Share annotations via short UUID links (stored in chrome.storage)
+- Share banner with "Save to My Annotations" and "Dismiss" actions
+- 90-day expiration on shared links
+- Thumbnails stripped from shared data to reduce storage
 
 ---
 
@@ -54,7 +82,7 @@
 ### File Structure
 
 ```
-/Users/justinqpham/Projects/Noted/
+Noted/
 ├── manifest.json                    # Extension manifest (MV3)
 ├── background/
 │   ├── service-worker.js            # Background service worker
@@ -62,8 +90,10 @@
 ├── content/
 │   ├── content-script.js            # Main content script entry point
 │   ├── annotation-manager.js        # Manages all annotation lifecycle
+│   ├── anchor-engine.js             # Multi-strategy DOM anchoring (Phase 5)
 │   ├── text-engine.js               # Text annotation system
 │   ├── drawing-engine.js            # Drawing annotation system
+│   ├── export-engine.js             # SVG/PNG export (Phase 6)
 │   └── styles.css                   # Annotation UI styles
 ├── popup/
 │   ├── dashboard.html               # Extension popup UI
@@ -484,38 +514,19 @@
 
 ## Next Steps & Roadmap
 
-### Immediate Priority
-1. **Regression Coverage for Drawing Persistence**
-   - Automate scroll/resize persistence checks (Catmull-Rom history replay) to guard against ghost regressions.
-2. **Anchor QA on Dynamic Sites**
-   - Exercise recompute flow on dynamic SPAs (Twitter/X, Reddit) to confirm warning banner and page-space anchors behave as expected.
+### Phases 1-7: COMPLETE ✅
+All core features are implemented: text/drawing annotations, anchoring, export (SVG/PNG), sharing, and dashboard with undo/clear.
 
-### Phase 3 Completion
-- [x] Fix canvas copy bug
-- [x] Implement stroke color picker
-- [x] Implement stroke width controls
-- [x] Add eraser tool
-- [ ] Improve stroke rendering performance
-
-### Phase 4: Enhanced Dashboard
-- [ ] Group annotations by page URL
-- [ ] Search/filter annotations
-- [ ] Export annotations (JSON, CSV)
-- [ ] Import annotations
-- [ ] Annotation preview thumbnails
-
-### Phase 5: Collaboration (Future)
-- [ ] Cloud sync via Firebase/Supabase
-- [ ] Share annotations via link
-- [ ] Collaborative annotation (multi-user)
-- [ ] Comment threads on annotations
-
-### Phase 6: Advanced Features (Future)
+### Phase 8+: Future Enhancements (Optional)
+- [ ] Authentication & cloud sync
+- [ ] Browser sidebar panel integration
+- [ ] Context menu (right-click to annotate)
+- [ ] Annotation templates (Bug Report, Design Feedback, Research)
+- [ ] Layers system
+- [ ] Arrow/shape drawing tools
 - [ ] Highlight text annotations (like Medium)
-- [ ] Screenshot annotations
-- [ ] Arrow/shape tools
 - [ ] PDF annotation support
-- [ ] Mobile browser extension (Firefox for Android)
+- [ ] Chrome Web Store launch
 
 ---
 
