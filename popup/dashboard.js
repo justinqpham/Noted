@@ -52,6 +52,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   dashboardState.normalizedCurrentURL = normalizeURL(currentURL);
+
+  // Load collections first so annotation cards can show collection tags
+  initializeCollections();
+  await loadCollections();
+
   await loadAnnotationsData();
 
   // Initialize tab switching
@@ -66,10 +71,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize filters and list interactions
   initializeFilterControls();
   attachListListeners();
-
-  // Initialize collections
-  initializeCollections();
-  await loadCollections();
 
   // Load storage usage
   loadStorageUsage();
@@ -732,6 +733,20 @@ function createAnnotationItem(annotation, options = {}) {
     content.appendChild(snippet);
   }
 
+  // Show collection membership tags
+  const collectionNames = getCollectionNamesForAnnotation(annotation.id);
+  if (collectionNames.length) {
+    const tagsRow = document.createElement('div');
+    tagsRow.className = 'annotation-collection-tags';
+    collectionNames.forEach(name => {
+      const tag = document.createElement('span');
+      tag.className = 'collection-tag';
+      tag.textContent = name;
+      tagsRow.appendChild(tag);
+    });
+    content.appendChild(tagsRow);
+  }
+
   const actions = document.createElement('div');
   actions.className = 'annotation-actions';
   actions.style.position = 'relative';
@@ -1260,6 +1275,8 @@ async function addToCollection(collectionId, annotationId) {
   if (collection.annotationIds.includes(annotationId)) return;
   collection.annotationIds.push(annotationId);
   await saveCollections();
+  renderCollectionsList();
+  updateAnnotationCollectionTags(annotationId);
   console.log('Noted: Added annotation to collection:', collection.name);
 }
 
@@ -1275,6 +1292,7 @@ async function removeFromCollection(collectionId, annotationId) {
     renderCollectionDetail(collectionId);
   }
   renderCollectionsList();
+  updateAnnotationCollectionTags(annotationId);
 }
 
 /**
@@ -1436,4 +1454,43 @@ function showCollectionDropdown(buttonEl, annotationId) {
   }
 
   buttonEl.parentElement.appendChild(dropdown);
+}
+
+/**
+ * Get collection names that contain a given annotation
+ */
+function getCollectionNamesForAnnotation(annotationId) {
+  return Object.values(dashboardState.collections)
+    .filter(c => c.annotationIds.includes(annotationId))
+    .map(c => c.name);
+}
+
+/**
+ * Update collection tags on all visible cards for a given annotation
+ */
+function updateAnnotationCollectionTags(annotationId) {
+  const cards = document.querySelectorAll(`.annotation-item[data-annotation-id="${annotationId}"]`);
+  const collectionNames = getCollectionNamesForAnnotation(annotationId);
+
+  cards.forEach(card => {
+    const content = card.querySelector('.annotation-content');
+    if (!content) return;
+
+    // Remove existing tags row
+    const existing = content.querySelector('.annotation-collection-tags');
+    if (existing) existing.remove();
+
+    // Add new tags if any
+    if (collectionNames.length) {
+      const tagsRow = document.createElement('div');
+      tagsRow.className = 'annotation-collection-tags';
+      collectionNames.forEach(name => {
+        const tag = document.createElement('span');
+        tag.className = 'collection-tag';
+        tag.textContent = name;
+        tagsRow.appendChild(tag);
+      });
+      content.appendChild(tagsRow);
+    }
+  });
 }

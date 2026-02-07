@@ -302,6 +302,23 @@ body {
   text-overflow: ellipsis;
 }
 
+.annotation-collection-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.collection-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--accent-blue);
+  color: white;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
 .annotation-actions {
   display: flex;
   gap: 4px;
@@ -321,6 +338,7 @@ body {
   background: var(--hover-bg);
   cursor: pointer;
   font-size: 14px;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -329,7 +347,8 @@ body {
 
 .action-button:hover {
   background: var(--border-color);
-  transform: scale(1.1);
+  transform: scale(1.2);
+  transform-origin: center;
 }
 
 /* Empty State */
