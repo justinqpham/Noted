@@ -673,39 +673,6 @@ body {
   color: var(--accent-blue);
 }
 
-.button-danger {
-  width: 100%;
-  padding: 10px 16px;
-  border: 1px solid var(--accent-red);
-  border-radius: var(--radius-md);
-  background: var(--primary-bg);
-  color: var(--accent-red);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-top: 8px;
-}
-
-.button-danger:hover {
-  background: var(--accent-red);
-  color: white;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.button-danger:active {
-  transform: translateY(0);
-}
-
-/* Danger Zone */
-.danger-zone {
-  background: rgba(255, 59, 48, 0.05);
-  padding: 16px;
-  border-radius: var(--radius-lg);
-  border: 1px solid rgba(255, 59, 48, 0.2);
-}
-
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
   width: 8px;

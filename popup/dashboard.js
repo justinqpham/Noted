@@ -297,38 +297,6 @@ function initializeActionButtons() {
     // Phase 6: Show file picker to import annotations
   });
 
-  // Clear all button
-  const clearAllBtn = document.getElementById('clear-all-btn');
-  if (clearAllBtn) {
-    console.log('Noted: Clear all button found, attaching listener');
-    clearAllBtn.addEventListener('click', async () => {
-      console.log('Noted: Clear all button clicked');
-
-      // Double-click to confirm (since confirm() doesn't work in popups)
-      if (clearAllBtn.dataset.confirmPending === 'true') {
-        // Second click - actually clear
-        clearAllBtn.dataset.confirmPending = 'false';
-        clearAllBtn.textContent = 'Clear All Annotations';
-        clearAllBtn.style.background = '';
-        await clearAllAnnotations();
-      } else {
-        // First click - ask for confirmation
-        clearAllBtn.dataset.confirmPending = 'true';
-        clearAllBtn.textContent = 'Click again to confirm';
-        clearAllBtn.style.background = '#ff3b30';
-
-        // Reset after 3 seconds
-        setTimeout(() => {
-          clearAllBtn.dataset.confirmPending = 'false';
-          clearAllBtn.textContent = 'Clear All Annotations';
-          clearAllBtn.style.background = '';
-        }, 3000);
-      }
-    });
-  } else {
-    console.error('Noted: Clear all button not found');
-  }
-
   // Undo delete buttons (Current Page + All Annotations tabs)
   const undoDeleteBtn = document.getElementById('undo-delete-btn');
   if (undoDeleteBtn) {
