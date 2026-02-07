@@ -64,13 +64,13 @@
 - **4 tabs**: Current Page, All Annotations, Collections, Settings
 - **Click to navigate**: Click any annotation to scroll to it (or navigate to its page)
 - Search, filter by type, sort annotations
-- **Collections**: Create named groups, add/remove annotations via folder icon
+- **Collections**: Create named groups, add/remove annotations via folder icon; collection tags shown on annotation cards
 - **Undo Delete** button (in-memory stack, up to 20 levels)
 - **Clear Page / Clear All** with double-click confirmation
 - **Customizable keyboard shortcuts**: Click a hotkey field and press new combo
 - Export format setting (SVG or PNG)
 - Storage usage display
-- Import/Export annotations (JSON)
+- Import/Export annotations (JSON) in Settings
 
 ---
 
