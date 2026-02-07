@@ -434,7 +434,7 @@ class AnchorEngine {
       contextBefore,
       contextAfter,
       parentTag: element.tagName,
-      parentClasses: element.className ? element.className.split(/\s+/).filter(Boolean) : []
+      parentClasses: (typeof element.className === 'string' && element.className) ? element.className.split(/\s+/).filter(Boolean) : []
     };
   }
 
@@ -646,37 +646,39 @@ class AnchorEngine {
   }
 
   /**
-   * Detect if current page uses infinite scroll
+   * Detect if current page uses infinite scroll.
+   * Conservative approach: only flag pages with strong evidence.
+   * Phase 5's anchor warning system handles misalignment after-the-fact,
+   * so false negatives here are OK (they just get a warning later).
+   * False positives are annoying (modal blocks annotation workflow).
    * @returns {boolean}
    */
   static isInfiniteScrollPage() {
-    const INFINITE_SCROLL_DOMAINS = [
-      'twitter.com', 'x.com',
-      'reddit.com',
-      'facebook.com',
-      'instagram.com',
-      'linkedin.com',
-      'pinterest.com',
-      'tumblr.com',
-      'medium.com'
+    // If the page has traditional pagination, it's NOT infinite scroll
+    const hasPagination = !!document.querySelector(
+      'a[rel="next"], [aria-label="pagination"], nav.pagination, .pagination, ' +
+      'ul.pager, .pager, [role="navigation"] a[href*="page="], [role="navigation"] a[href*="page/"]'
+    );
+    if (hasPagination) return false;
+
+    // Check for explicit infinite scroll library markers
+    const hasInfiniteScrollLib = !!document.querySelector(
+      '[data-infinite-scroll], [infinite-scroll], ' +
+      '[data-infinite-scroll-url], .infinite-scroll-component'
+    );
+    if (hasInfiniteScrollLib) return true;
+
+    // Check for IntersectionObserver sentinel elements at the bottom of content
+    // These are invisible trigger elements that load more content
+    const sentinelSelectors = [
+      '.sentinel', '.infinite-scroll-trigger', '.load-more-sentinel',
+      '[data-testid="cellInnerDiv"] + div[style*="height: 0"]',  // Twitter/X feed
+      'faceplate-partial[loading="lazily"]'  // Reddit
     ];
+    const hasSentinel = sentinelSelectors.some(sel => {
+      try { return !!document.querySelector(sel); } catch { return false; }
+    });
 
-    const domain = window.location.hostname.replace('www.', '');
-
-    // Check known domains
-    if (INFINITE_SCROLL_DOMAINS.some(d => domain.includes(d))) {
-      // Exclude specific non-scrolling pages
-      const url = window.location.pathname;
-      if (url.match(/\/(status|post|article|p|comments)\/[\w-]+$/)) {
-        return false;  // Individual post/article pages typically don't infinite scroll
-      }
-      return true;
-    }
-
-    // Heuristic detection - only check for explicit infinite scroll indicators
-    const hasInfiniteScrollLib = !!document.querySelector('[data-infinite-scroll], .infinite-scroll, [infinite-scroll]');
-
-    // Don't rely on page height alone - too many false positives
-    return hasInfiniteScrollLib;
+    return hasSentinel;
   }
 }
