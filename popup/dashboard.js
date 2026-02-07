@@ -42,38 +42,42 @@ const TRACKING_PARAMS = new Set([
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('Noted: Dashboard DOM loaded');
 
-  // Get current tab URL
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    currentURL = tab?.url || '';
-    console.log('Noted: Current URL:', currentURL);
+    // Get current tab URL
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      currentURL = tab?.url || '';
+      console.log('Noted: Current URL:', currentURL);
+    } catch (error) {
+      console.error('Noted: Error getting current tab:', error);
+    }
+
+    dashboardState.normalizedCurrentURL = normalizeURL(currentURL);
+
+    // Load collections first so annotation cards can show collection tags
+    initializeCollections();
+    await loadCollections();
+
+    await loadAnnotationsData();
+
+    // Initialize tab switching
+    initializeTabSwitching();
+
+    // Initialize action buttons
+    initializeActionButtons();
+
+    // Initialize settings
+    initializeSettings();
+
+    // Initialize filters and list interactions
+    initializeFilterControls();
+    attachListListeners();
+
+    // Load storage usage
+    loadStorageUsage();
   } catch (error) {
-    console.error('Noted: Error getting current tab:', error);
+    console.error('Noted: Dashboard initialization failed:', error);
   }
-
-  dashboardState.normalizedCurrentURL = normalizeURL(currentURL);
-
-  // Load collections first so annotation cards can show collection tags
-  initializeCollections();
-  await loadCollections();
-
-  await loadAnnotationsData();
-
-  // Initialize tab switching
-  initializeTabSwitching();
-
-  // Initialize action buttons
-  initializeActionButtons();
-
-  // Initialize settings
-  initializeSettings();
-
-  // Initialize filters and list interactions
-  initializeFilterControls();
-  attachListListeners();
-
-  // Load storage usage
-  loadStorageUsage();
 });
 
 /**

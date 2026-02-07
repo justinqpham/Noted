@@ -362,6 +362,9 @@ class AnnotationManager {
         this.annotations[index] = annotation;
       }
 
+      // Skip storage reload to prevent DOM rebuild (preserves focus during text editing)
+      this.skipNextStorageReload = true;
+
       // Save to storage
       await this.saveAnnotation(annotation);
 
