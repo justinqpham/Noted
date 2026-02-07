@@ -47,7 +47,7 @@
 - Popup dashboard UI with 4 tabs (Current Page, All Annotations, Collections, Settings)
 - Search and filter annotations (by type, sort order, domain)
 - Click-to-navigate: click any annotation to scroll to it or navigate to its page
-- Collections: create/delete named groups, add/remove annotations via folder icon
+- Collections: create/delete named groups, add/remove annotations via folder icon; collection tags shown on annotation cards
 - Undo Delete button (in-memory stack, capped at 20)
 - Clear Page / Clear All buttons with double-click confirmation
 - Customizable keyboard shortcuts (click field, press new combo)
@@ -284,7 +284,7 @@ Noted/
 
 ### Dashboard
 - **Click extension icon** - Open popup dashboard
-- **Clear All Annotations** - Double-click to confirm and clear all
+- **Clear Page / Clear All** - Double-click to confirm
 
 ---
 
