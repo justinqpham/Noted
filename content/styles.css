@@ -37,17 +37,6 @@
   animation: slideDown 0.3s ease;
 }
 
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
 /* Text Annotation */
 .noted-text-annotation {
   padding: 12px;
@@ -191,17 +180,6 @@
   z-index: 10;
   pointer-events: auto;
   animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .noted-color-option {
@@ -517,6 +495,8 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   animation: slideDown 0.3s ease;
   max-width: 600px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+  pointer-events: auto;
 }
 
 @keyframes slideDown {
@@ -547,12 +527,13 @@
   background: rgba(0, 0, 0, 0.1);
   border: none;
   border-radius: 6px;
-  padding: 6px 12px;
+  padding: 8px 12px;
   font-size: 13px;
   font-weight: 600;
   color: #1D1D1F;
   cursor: pointer;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .noted-warning-dismiss:hover {
@@ -578,9 +559,11 @@
 @keyframes fadeIn {
   from {
     opacity: 0;
+    transform: translateY(-4px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -698,12 +681,13 @@
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(0, 0, 0, 0.15);
   border-radius: 6px;
-  padding: 6px 12px;
+  padding: 8px 16px;
   font-size: 13px;
   font-weight: 600;
   color: #007AFF;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .noted-warning-action-btn:hover {
@@ -731,6 +715,7 @@
 .noted-thumbnail-content {
   text-align: center;
   max-width: 400px;
+  padding: 24px;
 }
 
 /* Phase 7: Shared Annotations Banner */
@@ -771,6 +756,7 @@
   color: white;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .noted-shared-action-btn:hover {
@@ -788,6 +774,7 @@
   color: #1565C0;
   cursor: pointer;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .noted-shared-dismiss-btn:hover {
