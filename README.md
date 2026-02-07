@@ -278,7 +278,9 @@ See [HANDOFF.md](HANDOFF.md) for latest development status and handoff notes.
 
 ## Known Issues
 
-No critical issues currently. Recent fixes include:
+**PDF pages**: Annotations are not supported on PDFs opened in the browser. A notice is shown when attempting to annotate a PDF.
+
+Recent fixes include:
 - ✅ Alt+drag ghost stroke bug resolved
 - ✅ URL normalization for annotation persistence
 - ✅ Window resize drift fixed

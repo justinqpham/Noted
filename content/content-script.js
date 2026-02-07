@@ -3,6 +3,9 @@
 
 console.log('Noted: Content script loaded on', window.location.href);
 
+// Detect PDF pages — Chrome's PDF viewer is a sandboxed plugin with no real DOM
+const isPDFPage = document.contentType === 'application/pdf' || window.location.pathname.endsWith('.pdf');
+
 // State
 let isInitialized = false;
 let annotationManager = null;
@@ -15,6 +18,11 @@ const TOGGLE_DEBOUNCE_MS = 300;
  * Initialize content script
  */
 function initialize() {
+  if (isPDFPage) {
+    console.log('Noted: PDF page detected, annotations not supported');
+    return;
+  }
+
   if (isInitialized) {
     console.log('Noted: Already initialized');
     return;
@@ -180,6 +188,36 @@ function verifyExtension() {
     hotkeyManagerLoaded: typeof hotkeyManager !== 'undefined',
     chromeRuntimeAvailable: typeof chrome?.runtime !== 'undefined',
     documentReady: document.readyState
+  });
+}
+
+/**
+ * Show a temporary notice that PDF annotation is not supported
+ */
+function showPDFUnsupportedNotice() {
+  if (document.getElementById('noted-pdf-notice')) return;
+  const notice = document.createElement('div');
+  notice.id = 'noted-pdf-notice';
+  notice.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:2147483647;' +
+    'background:#1a1a2e;color:#fff;padding:12px 24px;border-radius:10px;font:14px/1.4 -apple-system,sans-serif;' +
+    'box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:opacity 0.3s;';
+  notice.textContent = 'Noted does not support PDF pages yet';
+  document.body.appendChild(notice);
+  setTimeout(() => {
+    notice.style.opacity = '0';
+    setTimeout(() => notice.remove(), 300);
+  }, 3000);
+}
+
+// On PDF pages, listen for messages and show unsupported notice
+if (isPDFPage) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (['ACTIVATE_TEXT_MODE', 'TOGGLE_TEXT_MODE', 'ACTIVATE_DRAW_MODE', 'TOGGLE_DRAW_MODE',
+         'EXPORT_SVG', 'EXPORT_ANNOTATIONS', 'GENERATE_SHARE_LINK'].includes(message.type)) {
+      showPDFUnsupportedNotice();
+      sendResponse({ success: false, error: 'PDF not supported' });
+    }
+    return true;
   });
 }
 
