@@ -127,19 +127,39 @@
 
       <!-- Tab 3: Collections -->
       <div class="tab-content" id="collections-tab">
-        <div class="collections-header">
-          <button class="button-primary" id="new-collection-btn">
-            + New Collection
-          </button>
+        <!-- List view -->
+        <div id="collections-list-view">
+          <div class="collections-header">
+            <button class="button-primary" id="new-collection-btn">
+              + New Collection
+            </button>
+          </div>
+
+          <!-- Inline create form (hidden by default) -->
+          <div class="collection-create-form" id="collection-create-form" style="display:none">
+            <input type="text" class="search-input" id="collection-name-input" placeholder="Collection name..." maxlength="60">
+            <div class="action-bar" style="margin-top:8px">
+              <button class="action-bar-btn" id="collection-save-btn">Save</button>
+              <button class="action-bar-btn" id="collection-cancel-btn">Cancel</button>
+            </div>
+          </div>
+
+          <div class="collections-list" id="collections-list">
+            <div class="empty-state">
+              <div class="empty-icon">📁</div>
+              <p class="empty-text">No collections yet.</p>
+              <p class="empty-subtext">Organize your annotations!</p>
+            </div>
+          </div>
         </div>
 
-        <div class="collections-list" id="collections-list">
-          <!-- Empty state -->
-          <div class="empty-state">
-            <div class="empty-icon">📁</div>
-            <p class="empty-text">No collections yet.</p>
-            <p class="empty-subtext">Organize your annotations!</p>
+        <!-- Detail view (hidden by default) -->
+        <div id="collections-detail-view" style="display:none">
+          <div class="collection-detail-header">
+            <button class="collection-back-btn" id="collection-back-btn">&#8592; Back</button>
+            <span class="collection-detail-name" id="collection-detail-name"></span>
           </div>
+          <div class="annotation-list" id="collection-annotations-list"></div>
         </div>
       </div>
 
@@ -174,7 +194,7 @@
             <input type="text" class="hotkey-input" id="draw-hotkey" placeholder="Ctrl+Shift+D" readonly>
           </div>
 
-          <p class="settings-note">Custom hotkeys will be available in a future update</p>
+          <p class="settings-note">Click a field and press your desired key combination</p>
         </div>
 
         <div class="settings-section">

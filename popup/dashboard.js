@@ -13,6 +13,8 @@ const dashboardState = {
   annotationIndex: {},
   currentAnnotations: [],
   allAnnotations: [],
+  collections: {},
+  activeCollectionId: null,
   undoStack: [],
   filters: {
     search: '',
@@ -64,6 +66,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize filters and list interactions
   initializeFilterControls();
   attachListListeners();
+
+  // Initialize collections
+  initializeCollections();
+  await loadCollections();
 
   // Load storage usage
   loadStorageUsage();
@@ -159,6 +165,14 @@ function attachListListeners() {
   const allList = document.getElementById('all-annotations-list');
 
   const handler = async (event) => {
+    // Add to collection
+    const addBtn = event.target.closest('.action-button[data-action="add-to-collection"]');
+    if (addBtn) {
+      event.stopPropagation();
+      showCollectionDropdown(addBtn, addBtn.dataset.annotationId);
+      return;
+    }
+
     const deleteBtn = event.target.closest('.action-button[data-action="delete"]');
     if (deleteBtn) {
       event.stopPropagation();
@@ -167,6 +181,16 @@ function attachListListeners() {
         await deleteAnnotationById(annotationId);
       }
       return;
+    }
+
+    // Click on annotation item to navigate/scroll
+    const item = event.target.closest('.annotation-item');
+    if (item) {
+      const annotationId = item.dataset.annotationId;
+      const normalizedUrl = item.dataset.normalizedUrl;
+      if (annotationId && normalizedUrl) {
+        await navigateToAnnotation(annotationId, normalizedUrl);
+      }
     }
   };
 
@@ -256,12 +280,7 @@ function initializeActionButtons() {
     });
   }
 
-  // New collection button
-  const newCollectionBtn = document.getElementById('new-collection-btn');
-  newCollectionBtn.addEventListener('click', () => {
-    console.log('Noted: New collection button clicked (Phase 5)');
-    // Phase 5: Show modal to create new collection
-  });
+  // New collection button — handled by initializeCollections()
 
   // Export button
   const exportBtn = document.getElementById('export-btn');
@@ -418,12 +437,15 @@ function initializeSettings() {
       }
     });
 
-    // Hotkeys display (read-only in Phase 1)
+    // Hotkey inputs — click to record new shortcut
     const textHotkey = document.getElementById('text-hotkey');
     const drawHotkey = document.getElementById('draw-hotkey');
 
     textHotkey.value = settings.hotkeys?.textMode || 'Ctrl+Shift+T';
     drawHotkey.value = settings.hotkeys?.drawMode || 'Ctrl+Shift+D';
+
+    setupHotkeyInput(textHotkey, 'textMode');
+    setupHotkeyInput(drawHotkey, 'drawMode');
 
     // Export format
     const exportFormatSelect = document.getElementById('export-format-select');
@@ -446,6 +468,88 @@ function updateExportButton(format) {
   const btn = document.getElementById('export-svg-btn');
   if (btn) {
     btn.title = format === 'png' ? 'Export as PNG' : 'Export as SVG';
+  }
+}
+
+/**
+ * Set up a hotkey input to record key combinations on click
+ * @param {HTMLInputElement} input - The hotkey input element
+ * @param {string} mode - 'textMode' or 'drawMode'
+ */
+function setupHotkeyInput(input, mode) {
+  let captured = false;
+
+  input.addEventListener('click', () => {
+    captured = false;
+    input.dataset.originalValue = input.value;
+    input.value = 'Press keys...';
+    input.removeAttribute('readonly');
+    input.style.borderColor = 'var(--accent-blue)';
+    input.style.background = 'var(--primary-bg)';
+    input.style.color = 'var(--accent-blue)';
+    input.style.boxShadow = '0 0 0 3px rgba(0, 122, 255, 0.1)';
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (input.getAttribute('readonly') !== null) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Ignore modifier-only presses
+    if (['Control', 'Shift', 'Alt', 'Meta', 'OS'].includes(e.key)) return;
+
+    // Require at least one modifier
+    if (!e.ctrlKey && !e.shiftKey && !e.altKey) return;
+
+    const parts = [];
+    if (e.ctrlKey) parts.push('Ctrl');
+    if (e.shiftKey) parts.push('Shift');
+    if (e.altKey) parts.push('Alt');
+    parts.push(e.key.toUpperCase());
+
+    const combo = parts.join('+');
+    input.value = combo;
+    captured = true;
+
+    // Save hotkey (preserve the other mode's value)
+    saveHotkey(mode, combo);
+    input.setAttribute('readonly', '');
+    resetHotkeyInputStyle(input);
+  });
+
+  input.addEventListener('blur', () => {
+    if (!captured && !input.getAttribute('readonly')) {
+      input.value = input.dataset.originalValue || (mode === 'textMode' ? 'Ctrl+Shift+T' : 'Ctrl+Shift+D');
+    }
+    input.setAttribute('readonly', '');
+    resetHotkeyInputStyle(input);
+  });
+}
+
+function resetHotkeyInputStyle(input) {
+  input.style.borderColor = '';
+  input.style.background = '';
+  input.style.color = '';
+  input.style.boxShadow = '';
+}
+
+/**
+ * Save a single hotkey binding, preserving the other mode's value
+ */
+async function saveHotkey(mode, combo) {
+  try {
+    const result = await chrome.storage.local.get(['settings']);
+    const settings = result.settings || {};
+    const hotkeys = settings.hotkeys || {
+      textMode: 'Ctrl+Shift+T',
+      drawMode: 'Ctrl+Shift+D'
+    };
+    hotkeys[mode] = combo;
+    await updateSettings({ hotkeys });
+    console.log(`Noted: Hotkey updated — ${mode}: ${combo}`);
+  } catch (error) {
+    console.error('Noted: Error saving hotkey:', error);
   }
 }
 
@@ -630,6 +734,14 @@ function createAnnotationItem(annotation, options = {}) {
 
   const actions = document.createElement('div');
   actions.className = 'annotation-actions';
+  actions.style.position = 'relative';
+
+  const addToCollectionBtn = document.createElement('button');
+  addToCollectionBtn.className = 'action-button';
+  addToCollectionBtn.dataset.action = 'add-to-collection';
+  addToCollectionBtn.dataset.annotationId = annotation.id;
+  addToCollectionBtn.title = 'Add to collection';
+  addToCollectionBtn.textContent = '📁';
 
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'action-button';
@@ -638,6 +750,7 @@ function createAnnotationItem(annotation, options = {}) {
   deleteBtn.title = 'Delete annotation';
   deleteBtn.textContent = '🗑';
 
+  actions.appendChild(addToCollectionBtn);
   actions.appendChild(deleteBtn);
 
   item.appendChild(icon);
@@ -900,6 +1013,31 @@ async function deleteAnnotationById(annotationId) {
   }
 }
 
+/**
+ * Navigate to an annotation — scroll if on current page, otherwise open the URL
+ */
+async function navigateToAnnotation(annotationId, normalizedUrl) {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const currentNormalized = dashboardState.normalizedCurrentURL;
+
+    if (normalizedUrl === currentNormalized) {
+      // Same page — scroll to annotation
+      await chrome.tabs.sendMessage(tab.id, {
+        type: 'SCROLL_TO_ANNOTATION',
+        annotationId
+      });
+      window.close();
+    } else {
+      // Different page — navigate there
+      await chrome.tabs.update(tab.id, { url: normalizedUrl });
+      window.close();
+    }
+  } catch (error) {
+    console.error('Noted: Error navigating to annotation:', error);
+  }
+}
+
 async function notifyActiveTabAnnotationsUpdated() {
   try {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -965,10 +1103,337 @@ async function clearAllAnnotations() {
 
     // Reload storage usage
     await loadAnnotationsData();
+    await loadCollections();
     loadStorageUsage();
     await notifyActiveTabAnnotationsUpdated();
   } catch (error) {
     console.error('Noted: Error clearing annotations:', error);
     alert('Error clearing annotations. Please try again.');
   }
+}
+
+// ========================================================
+// Collections
+// ========================================================
+
+/**
+ * Initialize collections UI event handlers
+ */
+function initializeCollections() {
+  const newBtn = document.getElementById('new-collection-btn');
+  const createForm = document.getElementById('collection-create-form');
+  const nameInput = document.getElementById('collection-name-input');
+  const saveBtn = document.getElementById('collection-save-btn');
+  const cancelBtn = document.getElementById('collection-cancel-btn');
+  const backBtn = document.getElementById('collection-back-btn');
+
+  newBtn.addEventListener('click', () => {
+    createForm.style.display = '';
+    nameInput.value = '';
+    nameInput.focus();
+  });
+
+  cancelBtn.addEventListener('click', () => {
+    createForm.style.display = 'none';
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    const name = nameInput.value.trim();
+    if (!name) return;
+    await createCollection(name);
+    createForm.style.display = 'none';
+  });
+
+  nameInput.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+      const name = nameInput.value.trim();
+      if (!name) return;
+      await createCollection(name);
+      createForm.style.display = 'none';
+    } else if (e.key === 'Escape') {
+      createForm.style.display = 'none';
+    }
+  });
+
+  backBtn.addEventListener('click', () => {
+    dashboardState.activeCollectionId = null;
+    document.getElementById('collections-detail-view').style.display = 'none';
+    document.getElementById('collections-list-view').style.display = '';
+  });
+
+  // Delegated click handler for collections list
+  const collectionsList = document.getElementById('collections-list');
+  collectionsList.addEventListener('click', async (event) => {
+    const deleteBtn = event.target.closest('.action-button[data-action="delete-collection"]');
+    if (deleteBtn) {
+      event.stopPropagation();
+      await deleteCollection(deleteBtn.dataset.collectionId);
+      return;
+    }
+
+    const item = event.target.closest('.collection-item');
+    if (item) {
+      openCollectionDetail(item.dataset.collectionId);
+    }
+  });
+
+  // Delegated click handler for collection detail annotations
+  const detailList = document.getElementById('collection-annotations-list');
+  detailList.addEventListener('click', async (event) => {
+    const removeBtn = event.target.closest('.action-button[data-action="remove-from-collection"]');
+    if (removeBtn) {
+      event.stopPropagation();
+      await removeFromCollection(dashboardState.activeCollectionId, removeBtn.dataset.annotationId);
+      return;
+    }
+
+    const item = event.target.closest('.annotation-item');
+    if (item) {
+      const annotationId = item.dataset.annotationId;
+      const normalizedUrl = item.dataset.normalizedUrl;
+      if (annotationId && normalizedUrl) {
+        await navigateToAnnotation(annotationId, normalizedUrl);
+      }
+    }
+  });
+
+  // Close any open collection dropdown when clicking elsewhere
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.collection-dropdown') && !e.target.closest('.action-button[data-action="add-to-collection"]')) {
+      document.querySelectorAll('.collection-dropdown').forEach(d => d.remove());
+    }
+  });
+}
+
+/**
+ * Load collections from storage
+ */
+async function loadCollections() {
+  try {
+    const result = await chrome.storage.local.get(['collections']);
+    dashboardState.collections = result.collections || {};
+    renderCollectionsList();
+  } catch (error) {
+    console.error('Noted: Error loading collections:', error);
+  }
+}
+
+/**
+ * Save collections to storage
+ */
+async function saveCollections() {
+  await chrome.storage.local.set({ collections: dashboardState.collections });
+}
+
+/**
+ * Create a new collection
+ */
+async function createCollection(name) {
+  const id = crypto.randomUUID().slice(0, 12);
+  dashboardState.collections[id] = {
+    id,
+    name,
+    createdAt: Date.now(),
+    annotationIds: []
+  };
+  await saveCollections();
+  renderCollectionsList();
+  console.log('Noted: Collection created:', name);
+}
+
+/**
+ * Delete a collection
+ */
+async function deleteCollection(collectionId) {
+  delete dashboardState.collections[collectionId];
+  await saveCollections();
+  renderCollectionsList();
+  console.log('Noted: Collection deleted:', collectionId);
+}
+
+/**
+ * Add annotation to a collection
+ */
+async function addToCollection(collectionId, annotationId) {
+  const collection = dashboardState.collections[collectionId];
+  if (!collection) return;
+  if (collection.annotationIds.includes(annotationId)) return;
+  collection.annotationIds.push(annotationId);
+  await saveCollections();
+  console.log('Noted: Added annotation to collection:', collection.name);
+}
+
+/**
+ * Remove annotation from a collection
+ */
+async function removeFromCollection(collectionId, annotationId) {
+  const collection = dashboardState.collections[collectionId];
+  if (!collection) return;
+  collection.annotationIds = collection.annotationIds.filter(id => id !== annotationId);
+  await saveCollections();
+  if (dashboardState.activeCollectionId === collectionId) {
+    renderCollectionDetail(collectionId);
+  }
+  renderCollectionsList();
+}
+
+/**
+ * Render the collections list
+ */
+function renderCollectionsList() {
+  const container = document.getElementById('collections-list');
+  container.innerHTML = '';
+
+  const collections = Object.values(dashboardState.collections);
+  if (!collections.length) {
+    container.appendChild(createEmptyState('📁', 'No collections yet.', 'Organize your annotations!'));
+    return;
+  }
+
+  // Sort by creation date (newest first)
+  collections.sort((a, b) => b.createdAt - a.createdAt);
+
+  const fragment = document.createDocumentFragment();
+  collections.forEach(collection => {
+    const item = document.createElement('div');
+    item.className = 'collection-item';
+    item.dataset.collectionId = collection.id;
+
+    const icon = document.createElement('div');
+    icon.className = 'collection-item-icon';
+    icon.textContent = '📁';
+
+    const content = document.createElement('div');
+    content.className = 'collection-item-content';
+
+    const name = document.createElement('div');
+    name.className = 'collection-item-name';
+    name.textContent = collection.name;
+
+    const count = document.createElement('div');
+    count.className = 'collection-item-count';
+    const n = collection.annotationIds.length;
+    count.textContent = `${n} annotation${n !== 1 ? 's' : ''}`;
+
+    content.appendChild(name);
+    content.appendChild(count);
+
+    const actions = document.createElement('div');
+    actions.className = 'collection-item-actions';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'action-button';
+    deleteBtn.dataset.action = 'delete-collection';
+    deleteBtn.dataset.collectionId = collection.id;
+    deleteBtn.title = 'Delete collection';
+    deleteBtn.textContent = '🗑';
+    actions.appendChild(deleteBtn);
+
+    item.appendChild(icon);
+    item.appendChild(content);
+    item.appendChild(actions);
+
+    fragment.appendChild(item);
+  });
+
+  container.appendChild(fragment);
+}
+
+/**
+ * Open collection detail view
+ */
+function openCollectionDetail(collectionId) {
+  const collection = dashboardState.collections[collectionId];
+  if (!collection) return;
+
+  dashboardState.activeCollectionId = collectionId;
+  document.getElementById('collections-list-view').style.display = 'none';
+  document.getElementById('collections-detail-view').style.display = '';
+  document.getElementById('collection-detail-name').textContent = collection.name;
+
+  renderCollectionDetail(collectionId);
+}
+
+/**
+ * Render annotations inside a collection detail view
+ */
+function renderCollectionDetail(collectionId) {
+  const container = document.getElementById('collection-annotations-list');
+  container.innerHTML = '';
+
+  const collection = dashboardState.collections[collectionId];
+  if (!collection) return;
+
+  // Resolve annotation IDs to mapped annotations
+  const annotations = collection.annotationIds
+    .map(id => dashboardState.allAnnotations.find(a => a.id === id))
+    .filter(Boolean);
+
+  if (!annotations.length) {
+    container.appendChild(createEmptyState('📄', 'No annotations in this collection.', 'Add annotations from the other tabs.'));
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  annotations.forEach(annotation => {
+    const item = createAnnotationItem(annotation, { showDomain: true });
+    // Replace the add-to-collection button with a remove button
+    const addBtn = item.querySelector('.action-button[data-action="add-to-collection"]');
+    if (addBtn) {
+      addBtn.dataset.action = 'remove-from-collection';
+      addBtn.dataset.annotationId = annotation.id;
+      addBtn.title = 'Remove from collection';
+      addBtn.textContent = '➖';
+    }
+    fragment.appendChild(item);
+  });
+
+  container.appendChild(fragment);
+}
+
+/**
+ * Show dropdown to pick a collection for an annotation
+ */
+function showCollectionDropdown(buttonEl, annotationId) {
+  // Remove existing dropdowns
+  document.querySelectorAll('.collection-dropdown').forEach(d => d.remove());
+
+  const collections = Object.values(dashboardState.collections);
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'collection-dropdown';
+
+  if (!collections.length) {
+    const empty = document.createElement('div');
+    empty.className = 'collection-dropdown-empty';
+    empty.textContent = 'No collections — create one first';
+    dropdown.appendChild(empty);
+  } else {
+    collections.forEach(collection => {
+      const option = document.createElement('div');
+      option.className = 'collection-dropdown-item';
+
+      const isIn = collection.annotationIds.includes(annotationId);
+      if (isIn) {
+        option.classList.add('in-collection');
+        option.textContent = `✓ ${collection.name}`;
+      } else {
+        option.textContent = collection.name;
+      }
+
+      option.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (isIn) {
+          await removeFromCollection(collection.id, annotationId);
+        } else {
+          await addToCollection(collection.id, annotationId);
+        }
+        dropdown.remove();
+      });
+
+      dropdown.appendChild(option);
+    });
+  }
+
+  buttonEl.parentElement.appendChild(dropdown);
 }

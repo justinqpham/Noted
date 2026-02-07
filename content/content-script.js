@@ -54,6 +54,11 @@ function initialize() {
         sendResponse({ success: true });
         break;
 
+      case 'SCROLL_TO_ANNOTATION':
+        scrollToAnnotation(message.annotationId);
+        sendResponse({ success: true });
+        break;
+
       // Phase 6: Export (SVG or PNG)
       case 'EXPORT_SVG':
         handleExportAnnotations('svg');
@@ -146,6 +151,23 @@ function handleAnnotationsUpdated(annotations) {
   // Phase 6: Reload annotations from storage and re-render
   if (annotationManager) {
     annotationManager.loadAnnotations();
+  }
+}
+
+/**
+ * Scroll to and highlight a specific annotation
+ * @param {string} annotationId - The annotation ID to scroll to
+ */
+function scrollToAnnotation(annotationId) {
+  const el = document.querySelector(`[data-annotation-id="${annotationId}"]`);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Flash highlight
+    el.style.transition = 'box-shadow 0.3s';
+    el.style.boxShadow = '0 0 20px 5px rgba(0, 122, 255, 0.5)';
+    setTimeout(() => {
+      el.style.boxShadow = '';
+    }, 2000);
   }
 }
 

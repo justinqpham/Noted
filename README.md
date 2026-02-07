@@ -62,9 +62,12 @@
 
 #### 🎨 Dashboard
 - **4 tabs**: Current Page, All Annotations, Collections, Settings
+- **Click to navigate**: Click any annotation to scroll to it (or navigate to its page)
 - Search, filter by type, sort annotations
+- **Collections**: Create named groups, add/remove annotations via folder icon
 - **Undo Delete** button (in-memory stack, up to 20 levels)
 - **Clear Page / Clear All** with double-click confirmation
+- **Customizable keyboard shortcuts**: Click a hotkey field and press new combo
 - Export format setting (SVG or PNG)
 - Storage usage display
 - Import/Export annotations (JSON)
@@ -140,11 +143,14 @@ See [project_spec_3_phases8-12.md](project_spec_3_phases8-12.md) for details.
 ### Managing Annotations
 
 - **View all annotations**: Click the Noted extension icon
+- **Navigate to annotation**: Click any annotation in the dashboard to jump to it
+- **Collections**: Use the Collections tab to organize annotations into groups
 - **Clear page/all**: Use Clear Page or Clear All buttons (double-click to confirm)
 - **Undo delete**: Click "Undo Delete" to restore deleted annotations (up to 20 levels)
 - **Delete individual**: Hover over annotation and click delete button
 - **Export**: Click the export button (SVG or PNG, configurable in Settings)
 - **Share**: Click the share button to generate a share link
+- **Custom shortcuts**: Go to Settings to change keyboard shortcuts
 
 ---
 
@@ -152,11 +158,13 @@ See [project_spec_3_phases8-12.md](project_spec_3_phases8-12.md) for details.
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+Shift+T` | Activate text annotation mode |
-| `Ctrl+Shift+D` | Activate drawing mode |
+| `Ctrl+Shift+T` | Activate text annotation mode (customizable) |
+| `Ctrl+Shift+D` | Activate drawing mode (customizable) |
 | `Alt+Drag` | Move stroke during draw mode |
 | `Ctrl+Z` | Undo last stroke (draw mode only) |
 | `ESC` | Exit current mode |
+
+Shortcuts can be customized in Settings — click the hotkey field and press your desired key combination.
 
 ---
 
@@ -293,6 +301,9 @@ See [HANDOFF.md](HANDOFF.md) for detailed fix history.
 - [x] Draggable control panel with eraser & shadow toggle
 - [x] Persistent local storage with URL normalization
 - [x] Dashboard UI with search, filters, undo, and clear
+- [x] Collections for organizing annotations
+- [x] Click-to-navigate annotations from dashboard
+- [x] Customizable keyboard shortcuts
 - [x] Multi-strategy anchoring with confidence scoring
 - [x] SVG/PNG export (Figma-compatible)
 - [x] Storage-based sharing with short UUID links
